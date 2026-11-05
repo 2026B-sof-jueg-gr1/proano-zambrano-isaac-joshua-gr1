@@ -205,27 +205,52 @@
         return c;
     }
     function trap(closed) {
-        const [c, g] = canvas(84, 44);
-        g.fillStyle = '#030303'; g.strokeStyle = '#030303';
-        g.fillRect(8, 38, 68, 6);                           // base
-        g.lineWidth = 3;
-        if (!closed) {
-            // mandíbulas abiertas, planas a los lados con dientes hacia arriba
-            [[4, 1], [80, -1]].forEach(([x0, d]) => {
-                g.beginPath(); g.moveTo(42, 40); g.quadraticCurveTo(42 - 20 * d, 44, x0, 36); g.stroke();
-                for (let i = 0; i < 4; i++) {
-                    const tx = 42 - d * (8 + i * 8);
-                    g.beginPath(); g.moveTo(tx - 3, 40); g.lineTo(tx, 30); g.lineTo(tx + 3, 40); g.fill();
-                }
-            });
-            g.fillRect(36, 34, 12, 6);                       // plato
-        } else {
-            // mandíbulas cerradas, arco vertical con dientes entrelazados
-            g.beginPath(); g.arc(42, 40, 22, Math.PI, 0); g.stroke();
-            for (let i = 0; i < 5; i++) {
-                const tx = 28 + i * 7;
-                g.beginPath(); g.moveTo(tx - 3, 18 + (i % 2) * 2); g.lineTo(tx, 30); g.lineTo(tx + 3, 18 + (i % 2) * 2); g.fill();
+        // Trampa para osos legible: mandíbulas de sierra que sobresalen de la hierba,
+        // con brillos metálicos grises para que se distinga sobre el suelo negro.
+        const W = 104, H = 58, cx = W / 2, by = H - 8;
+        const [c, g] = canvas(W, H);
+        const dark = '#050505', steel = 'rgba(150,150,150,0.85)', steel2 = 'rgba(95,95,95,0.9)';
+        g.lineCap = 'round'; g.lineJoin = 'round';
+        // muelles laterales y cadena
+        g.strokeStyle = dark; g.lineWidth = 4;
+        g.beginPath(); g.moveTo(4, by); g.lineTo(cx - 14, by); g.moveTo(W - 4, by); g.lineTo(cx + 14, by); g.stroke();
+        g.fillStyle = dark; g.beginPath(); g.ellipse(6, by, 5, 7, 0, 0, Math.PI * 2); g.ellipse(W - 6, by, 5, 7, 0, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = steel2; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(10, by - 2); g.lineTo(cx - 16, by - 2); g.moveTo(W - 10, by - 2); g.lineTo(cx + 16, by - 2); g.stroke();
+        // base y plato
+        g.fillStyle = dark; g.fillRect(cx - 16, by - 2, 32, 8);
+        const jaw = (a0, a1, r, teethIn) => {
+            g.strokeStyle = dark; g.lineWidth = 5;
+            g.beginPath(); g.arc(cx, by, r, a0, a1); g.stroke();
+            const n = 6;
+            g.fillStyle = dark;
+            for (let i = 0; i <= n; i++) {
+                const a = a0 + (a1 - a0) * (i / n);
+                const ox = cx + Math.cos(a) * r, oy = by + Math.sin(a) * r;
+                const ix = cx + Math.cos(a) * (r - 11), iy = by + Math.sin(a) * (r - 11);
+                const px = -Math.sin(a) * 3.2, py = Math.cos(a) * 3.2;
+                g.beginPath(); g.moveTo(ox + px, oy + py); g.lineTo(teethIn ? ix : ox, teethIn ? iy : oy - 10); g.lineTo(ox - px, oy - py); g.fill();
             }
+            // brillo metálico en el borde exterior
+            g.strokeStyle = steel; g.lineWidth = 1.3;
+            g.beginPath(); g.arc(cx, by, r + 2, a0 + 0.08, a1 - 0.08); g.stroke();
+        };
+        if (!closed) {
+            jaw(Math.PI * 1.02, Math.PI * 1.46, 34, true);   // mandíbula izquierda
+            jaw(Math.PI * 1.54, Math.PI * 1.98, 34, true);   // mandíbula derecha
+            g.fillStyle = dark; g.beginPath(); g.ellipse(cx, by - 4, 9, 4, 0, 0, Math.PI * 2); g.fill();
+            g.strokeStyle = steel2; g.lineWidth = 1; g.beginPath(); g.ellipse(cx, by - 5, 8, 3, 0, Math.PI, 0); g.stroke();
+        } else {
+            // cerrada: las dos mandíbulas juntas, dientes entrelazados
+            g.strokeStyle = dark; g.lineWidth = 5;
+            g.beginPath(); g.ellipse(cx, by - 18, 11, 22, 0, 0, Math.PI * 2); g.stroke();
+            g.fillStyle = dark;
+            for (let i = 0; i < 6; i++) {
+                const y = by - 34 + i * 6, d = i % 2 ? 1 : -1;
+                g.beginPath(); g.moveTo(cx - 2 * d, y - 3); g.lineTo(cx + 9 * d, y); g.lineTo(cx - 2 * d, y + 3); g.fill();
+            }
+            g.strokeStyle = steel; g.lineWidth = 1.3;
+            g.beginPath(); g.ellipse(cx, by - 18, 13, 24, 0, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
         }
         return c;
     }
@@ -326,6 +351,60 @@
                 g.closePath(); g.fill();
                 g.strokeStyle = '#040404';
                 for (let k = 0; k < 5; k++) branch(g, rr, lerpN(bm.x1, bm.x2, 0.1 + k * 0.2), lerpN(bm.y1, bm.y2, 0.1 + k * 0.2), k % 2 ? 1 : -1, 4, 50 + rr() * 50, 2);
+            });
+
+            // telarañas entre árboles
+            (level.webs || []).forEach(wb => {
+                if (wb.x2 + 50 < cx || wb.x1 - 50 > cx + chunkW) return;
+                const rr = rng(wb.x1 + wb.y), mx = (wb.x1 + wb.x2) / 2, R = wb.r;
+                g.save();
+                g.strokeStyle = 'rgba(205,205,205,0.38)'; g.lineWidth = 1;
+                const spokes = 12, ends = [];
+                for (let i = 0; i < spokes; i++) {
+                    const a = i / spokes * Math.PI * 2 + rr() * 0.2, rl = R * (0.85 + rr() * 0.3);
+                    ends.push([a, rl]);
+                    g.beginPath(); g.moveTo(mx, wb.y); g.lineTo(mx + Math.cos(a) * rl, wb.y + Math.sin(a) * rl); g.stroke();
+                }
+                for (let k = 1; k <= 7; k++) {
+                    g.beginPath();
+                    ends.concat([ends[0]]).forEach(([a, rl], i) => {
+                        const rad = Math.min(rl, R) * k / 8, sag = 0.92;
+                        const x = mx + Math.cos(a) * rad, y = wb.y + Math.sin(a) * rad;
+                        if (!i) g.moveTo(x, y);
+                        else {
+                            const [pa] = ends[(i - 1) % spokes];
+                            const ma = (pa + a) / 2 + (a < pa ? Math.PI : 0);
+                            g.quadraticCurveTo(mx + Math.cos(ma) * rad * sag, wb.y + Math.sin(ma) * rad * sag, x, y);
+                        }
+                    });
+                    g.stroke();
+                }
+                // hilos de anclaje a los troncos
+                g.beginPath();
+                g.moveTo(mx - R, wb.y - 10); g.lineTo(wb.x1, wb.y - 40);
+                g.moveTo(mx - R * 0.8, wb.y + R * 0.6); g.lineTo(wb.x1, wb.y + 30);
+                g.moveTo(mx + R, wb.y - 8); g.lineTo(wb.x2, wb.y - 50);
+                g.moveTo(mx + R * 0.8, wb.y + R * 0.6); g.lineTo(wb.x2, wb.y + 20);
+                g.moveTo(mx, wb.y - R); g.lineTo(mx + 20, wb.y - R - 80);
+                g.stroke();
+                g.restore();
+            });
+            // capullos colgando (víctimas anteriores de la araña)
+            (level.cocoons || []).forEach(co => {
+                if (co.x + 40 < cx || co.x - 40 > cx + chunkW) return;
+                const rr = rng(co.x);
+                g.save();
+                g.strokeStyle = 'rgba(190,190,190,0.45)'; g.lineWidth = 1;
+                g.beginPath(); g.moveTo(co.x, 0); g.lineTo(co.x + 3, co.len); g.stroke();
+                g.translate(co.x + 3, co.len + 30); g.rotate((rr() - 0.5) * 0.15);
+                g.fillStyle = '#1a1a1a';
+                g.beginPath(); g.ellipse(0, 0, 13, 32, 0, 0, Math.PI * 2); g.fill();
+                g.strokeStyle = 'rgba(170,170,170,0.55)';
+                for (let i = 0; i < 9; i++) {
+                    const y = -28 + i * 7;
+                    g.beginPath(); g.moveTo(-12, y + rr() * 4); g.quadraticCurveTo(0, y + 6, 12, y - 2 + rr() * 4); g.stroke();
+                }
+                g.restore();
             });
 
             // estacas en los fosos

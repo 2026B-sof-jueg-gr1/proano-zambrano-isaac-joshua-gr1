@@ -25,11 +25,11 @@
     const P = {               // física del personaje
         speed: 270, accelGround: 2400, accelAir: 1500,
         jump: 640, gravity: 1500, coyote: 0.1, buffer: 0.13,
-        pushSpeed: 115
+        pushSpeed: 135
     };
 
     const LEVEL = {
-        width: 7600, height: 820,
+        width: 9700, height: 820,
         solids: [
             { x: -100, y: -400, w: 100, h: 1300, invisible: true },          // muro izquierdo
             { x: 0,    y: 560, w: 1480, h: 300 },                            // A: claro inicial
@@ -42,12 +42,12 @@
             { x: 4880, y: 545, w: 90,   h: 320 },                            //   roca en el agua
             { x: 5120, y: 560, w: 900,  h: 300 },                            // F: carrera
             { x: 6020, y: 800, w: 140,  h: 60, invisible: true },            //   fondo del foso 2
-            { x: 6160, y: 560, w: 1440, h: 300 },                            // G: final
-            { x: 7600, y: -400, w: 100, h: 1300, invisible: true }           // muro derecho
+            { x: 6160, y: 560, w: 3540, h: 300 },                            // G: bosque de la araña y final
+            { x: 9700, y: -400, w: 100, h: 1300, invisible: true }           // muro derecho
         ],
         spikes:  [{ x: 2200, y: 760, w: 170 }, { x: 6020, y: 760, w: 140 }],
         pits:    [{ x: 2200, y: 735, w: 170, h: 120 }, { x: 6020, y: 735, w: 140, h: 120, boulderPit: true }],
-        traps:   [{ x: 1150, y: 560 }, { x: 1830, y: 520 }, { x: 5720, y: 560 }],
+        traps:   [{ x: 1150, y: 560 }, { x: 1830, y: 520 }, { x: 5720, y: 560 }, { x: 7290, y: 560, spider: true }],
         pendulums: [
             { x: 3760, py: 40, len: 260, amp: 1.2, speed: 1.9, phase: 0 },
             { x: 4150, py: 40, len: 260, amp: 1.2, speed: 1.9, phase: 1.3 }
@@ -58,15 +58,29 @@
         boulder: { trigger: 5340, startX: 5020, groundY: 560, r: 90, stopPitX: 6090 },
         checkpoints: [
             { x: 520,  y: 560 }, { x: 2470, y: 540 }, { x: 3470, y: 360 },
-            { x: 4470, y: 560 }, { x: 5190, y: 560 }
+            { x: 4470, y: 560 }, { x: 5190, y: 560 }, { x: 6720, y: 560 },
+            { x: 7700, y: 560, requires: 'spiderWounded' }
         ],
-        ending: { x: 7380, y: 360, trigger: 7230 },
+        // La araña: patas que apuñalan (fase 1) y la emboscada con telaraña (fase 2)
+        spider: {
+            bodyX: 7760, bodyY: 34, groundY: 560,
+            huntFrom: 6960, barrierX: 7520,
+            plantedLegs: [7505, 7590, 7700, 7830, 7930, 8040],
+            cocoonTrigger: 8060, freeHits: 8
+        },
+        ending: { x: 9480, y: 360, trigger: 9330 },
         bgTrees: [
             { x: 380, y: 560, w: 58 }, { x: 1330, y: 560, w: 36 }, { x: 1980, y: 520, w: 84 },
             { x: 2560, y: 540, w: 30 }, { x: 3130, y: 540, w: 62 }, { x: 3950, y: 360, w: 44 },
             { x: 4560, y: 560, w: 52 }, { x: 5420, y: 560, w: 92 }, { x: 6400, y: 560, w: 48 },
-            { x: 6780, y: 560, w: 30 }
+            { x: 6780, y: 560, w: 30 }, { x: 7120, y: 560, w: 70 }, { x: 7420, y: 560, w: 46 },
+            { x: 8180, y: 560, w: 80 }, { x: 8520, y: 560, w: 40 }, { x: 8900, y: 560, w: 34 }
         ],
+        webs: [
+            { x1: 7120, x2: 7420, y: 120, r: 120 }, { x1: 6780, x2: 7120, y: 300, r: 90 },
+            { x1: 8180, x2: 8520, y: 160, r: 130 }, { x1: 8520, x2: 8900, y: 330, r: 80 }
+        ],
+        cocoons: [{ x: 7020, len: 190 }, { x: 7600, len: 120 }, { x: 8330, len: 230 }, { x: 8700, len: 150 }],
         vines: [
             { x: 760, len: 170 }, { x: 812, len: 120 }, { x: 2700, len: 230 }, { x: 3580, len: 140 },
             { x: 4300, len: 120 }, { x: 5000, len: 200 }, { x: 5940, len: 160 }
@@ -362,6 +376,13 @@
         updatePlayer(dt) {
             const b = this.player.body, k = this.keys;
             const tch = this.readTouch();
+            if (this.state === 'grabbed' || this.state === 'cocoon') {
+                this.onGround = b.blocked.down || b.touching.down;
+                this.pushing = false; this.pushBlend = 0;
+                if (this.state === 'cocoon') this.updateCocoon(dt, tch);
+                else b.setVelocityX(0);
+                return;
+            }
             const canMove = this.state === 'play';
             const left = canMove && (k.left.isDown || k.a.isDown || tch.left);
             const right = canMove && (k.right.isDown || k.d.isDown || tch.right);
@@ -381,7 +402,9 @@
             const box = this.box;
             const nearBox = box && Math.abs(b.bottom - box.body.bottom) < 6 &&
                 Math.abs((b.center.x + dir * 13) - box.x) < 40 + 2 && Math.sign(box.x - b.center.x) === dir;
-            this.pushing = onGround && dir !== 0 && nearBox && (dir > 0 ? b.touching.right || b.blocked.right : b.touching.left || b.blocked.left);
+            const contact = dir > 0 ? b.touching.right || b.blocked.right : b.touching.left || b.blocked.left;
+            if (contact && nearBox) this.pushGrace = 0.18; else this.pushGrace = (this.pushGrace || 0) - dt;
+            this.pushing = onGround && dir !== 0 && nearBox && (contact || this.pushGrace > 0);
             const maxSpeed = this.pushing ? P.pushSpeed : (this.state === 'ending' ? 110 : P.speed);
 
             const target = dir * maxSpeed;
@@ -391,14 +414,28 @@
 
             if (box) {
                 const boxBlocked = this.pushing && (dir > 0 ? box.body.blocked.right : box.body.blocked.left);
+                this.boxBlocked = boxBlocked;
                 if (this.pushing && !boxBlocked) {
-                    box.body.setVelocityX(dir * P.pushSpeed);
-                    b.setVelocityX(dir * P.pushSpeed);
+                    // empuje con ritmo: la caja avanza a tirones, siguiendo cada paso
+                    const effort = 0.45 + 0.95 * Math.max(0, Math.sin(this.phase * 2));
+                    const v = dir * P.pushSpeed * effort * clamp(this.pushBlend * 1.5, 0, 1);
+                    box.body.setVelocityX(v);
+                    b.setVelocityX(v);
+                    this.boxDust = (this.boxDust || 0) + dt * effort;
+                    if (this.boxDust > 0.12) {
+                        this.boxDust = 0;
+                        this.dustFx.explode(1, box.x - dir * 38, box.body.bottom - 2);
+                    }
                 } else box.body.setVelocityX(0);
                 const moving = Math.abs(box.body.velocity.x) > 5 && box.body.blocked.down;
                 SFX.loop('scrape', { freq: 260, q: 1.5, brown: true });
-                SFX.setLoop('scrape', moving ? 0.7 : 0, 200 + Math.random() * 80);
+                SFX.setLoop('scrape', moving ? 0.25 + Math.abs(box.body.velocity.x) / P.pushSpeed * 0.6 : 0, 180 + Math.abs(box.body.velocity.x));
+                if (this.pushing) {
+                    this.effortT = (this.effortT || 0) + dt;
+                    if (this.effortT > (boxBlocked ? 1.3 : 1.8)) { this.effortT = 0; SFX.effort(); }
+                }
             }
+            this.pushBlend = lerp(this.pushBlend || 0, this.pushing ? 1 : 0, Math.min(1, dt * 10));
 
             // salto con "coyote time" y "jump buffer"
             if (canMove && this.t - this.lastJumpPress < P.buffer && this.t - this.lastGround < P.coyote && b.velocity.y >= -10) {
@@ -423,9 +460,9 @@
 
             // fase de la animación de caminar + pasos
             const spd = Math.abs(b.velocity.x);
-            if (onGround && spd > 30) {
+            if (onGround && (spd > 30 || (this.pushing && !this.boxBlocked))) {
                 const before = Math.floor(this.phase / Math.PI);
-                this.phase += dt * spd * (this.pushing ? 0.07 : 0.042);
+                this.phase += dt * Math.max(spd, this.pushing ? 60 : 0) * (this.pushing ? 0.05 : 0.042);
                 if (Math.floor(this.phase / Math.PI) !== before) SFX.step(this.standingOnBox() ? 'wood' : 'grass');
             } else if (onGround) {
                 this.phase = Math.round(this.phase / Math.PI) * Math.PI + (this.phase % Math.PI) * 0.8;
@@ -484,44 +521,73 @@
 
             const squash = (this.landSquash || 0) * 4;
             const bob = this.onGround ? -Math.abs(Math.sin(ph)) * 2.5 * run + Math.sin(this.t * 2.2) * 0.6 * (1 - run) : 0;
-            const hip = [0, -28 + bob + squash];
+            const pb = this.cocooned ? 0 : (this.pushBlend || 0);          // 0 = normal, 1 = empujando
+            const strain = this.boxBlocked && this.pushing;
+            const tremble = strain ? Math.sin(this.t * 47) * 0.6 : 0;
+            const shift = -9 * pb;                                          // se aparta un poco para apoyar las manos
+            const hip = [shift + tremble * 0.3, -28 + bob * (1 - pb) + squash + 4 * pb];
 
             // inclinación del torso
             let lean = 0.1 * run;
-            if (this.pushing) lean = 0.42;
             if (air) lean = rising ? -0.04 : 0.06;
+            lean = lerp(lean, 0.5 + (strain ? 0.06 : 0), pb);
             const neck = [hip[0] + Math.sin(lean) * 19, hip[1] - Math.cos(lean) * 19];
-            const head = [neck[0] + Math.sin(lean) * 10 + 1, neck[1] - Math.cos(lean) * 10];
+            const headDrop = pb * 2;
+            const head = [neck[0] + Math.sin(lean) * lerp(10, 6.5, pb) + 1 - pb, neck[1] - Math.cos(lean) * 10 + headDrop];
+
+            const fk = (base, th, bend) => {
+                const knee = [base[0] + Math.sin(th) * 14, base[1] + Math.cos(th) * 14];
+                return { knee, foot: [knee[0] + Math.sin(th - bend) * 14.5, knee[1] + Math.cos(th - bend) * 14.5] };
+            };
+            const mix = (A, B, t) => [lerp(A[0], B[0], t), lerp(A[1], B[1], t)];
 
             // piernas
             const legs = [0, 1].map(k => {
                 let th, bend;
-                if (air) {
+                if (this.cocooned) { th = k ? 0.04 : -0.04; bend = 0.05; }
+                else if (air) {
                     if (rising) { th = k ? -0.25 : 0.75; bend = k ? 0.5 : 1.5; }
                     else { th = (k ? -0.15 : 0.3) + Math.sin(this.t * 9 + k * 2) * 0.12; bend = 0.35 + k * 0.2; }
-                } else if (this.pushing) {
-                    const a = ph + k * Math.PI;
-                    th = -0.35 + Math.sin(a) * 0.35; bend = Math.max(0, Math.cos(a)) * 0.9 + 0.2;
                 } else {
                     const a = ph + k * Math.PI;
                     th = Math.sin(a) * 0.72 * run + (k ? -0.04 : 0.04) * (1 - run);
                     bend = (Math.cos(a) > 0 ? Math.cos(a) * 1.15 : 0.12) * run + 0.04;
                 }
-                const knee = [hip[0] + Math.sin(th) * 14, hip[1] + Math.cos(th) * 14];
-                const foot = [knee[0] + Math.sin(th - bend) * 14.5, knee[1] + Math.cos(th - bend) * 14.5];
-                return { knee, foot };
+                const normal = fk(hip, th, bend);
+                if (pb < 0.01) return normal;
+                // pose de empuje: una pierna estirada atrás clavada en el suelo, la otra adelantada y flexionada
+                let u, lift;
+                if (strain) { u = k ? 0.05 : 0.85; lift = 0; }
+                else { const a = ph * 2 + k * Math.PI; u = (Math.sin(a) + 1) / 2; lift = Math.max(0, Math.cos(a)) * 0.55; }
+                const push = fk(hip, -0.62 + 1.08 * u + tremble * 0.01, u * 0.95 + lift);
+                return { knee: mix(normal.knee, push.knee, pb), foot: mix(normal.foot, push.foot, pb) };
             });
 
             // brazos
             const sh = [neck[0] - Math.sin(lean) * 2, neck[1] + 2];
+            const ik = (base, tgt, l1, l2) => {                              // IK de dos huesos, codo hacia abajo
+                const dx = tgt[0] - base[0], dy = tgt[1] - base[1];
+                const d = clamp(Math.hypot(dx, dy), 1, l1 + l2 - 0.01);
+                const a = Math.atan2(dy, dx);
+                const c = clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1);
+                const ea = a + Math.acos(c);
+                const el = [base[0] + Math.cos(ea) * l1, base[1] + Math.sin(ea) * l1];
+                return { el, hand: [base[0] + Math.cos(a) * d, base[1] + Math.sin(a) * d] };
+            };
+            const box = this.box;
+            const faceX = box ? (f > 0 ? box.body.left - px : px - box.body.right) : 12;
             const arms = [0, 1].map(k => {
                 let a1, a2;
-                if (this.pushing) { a1 = 1.25 + (k ? 0.12 : 0); a2 = 0.2; }
+                if (this.cocooned) { a1 = 0.08; a2 = 0.05; }
                 else if (air) { a1 = rising ? (k ? -0.6 : 0.9) : (k ? 1.6 : -1.1) + Math.sin(this.t * 8 + k) * 0.2; a2 = 0.5; }
                 else { a1 = -Math.sin(ph + k * Math.PI) * 0.75 * run + 0.06 + Math.sin(this.t * 2.2 + k) * 0.03; a2 = 0.35 + 0.4 * run; }
                 const el = [sh[0] + Math.sin(a1) * 11, sh[1] + Math.cos(a1) * 11];
                 const hand = [el[0] + Math.sin(a1 + a2) * 10, el[1] + Math.cos(a1 + a2) * 10];
-                return { el, hand };
+                if (pb < 0.01) return { el, hand };
+                // manos apoyadas en la cara de la caja (a dos alturas)
+                const tgt = [Math.min(faceX, 22) - 0.5, sh[1] + (k ? -1 : 6) + tremble * 0.4];
+                const p2 = ik(sh, tgt, 11, 10);
+                return { el: mix(el, p2.el, pb), hand: mix(hand, p2.hand, pb) };
             });
 
             const C = 0x020202;
@@ -564,6 +630,8 @@
             // pierna y brazo de delante
             limb(hip, legs[0].knee, 5.5); limb(legs[0].knee, legs[0].foot, 5);
             limb(sh, arms[0].el, 4); limb(arms[0].el, arms[0].hand, 3.6);
+
+            this.drawCocoon(g);
         }
 
         /* =================================================================
@@ -597,10 +665,19 @@
             this.boulder = { state: 'idle', x: B.startX, y: -200, vx: 0, vy: 0, rot: 0 };
             this.boulderImg = this.add.image(B.startX, -300, 'boulder').setDepth(11);
             this.boulderBridge = null;
+
+            // destello metálico ocasional en las trampas abiertas
+            this.traps.forEach(t => {
+                t.glint = this.add.image(t.x - 14, t.y - 26, 'mote').setBlendMode(Phaser.BlendModes.ADD).setDepth(11.5).setScale(0.9).setAlpha(0);
+                t.glintT = Math.random() * 3;
+            });
+
+            this.createSpider();
         }
 
         resetHazards(cp) {
-            this.traps.forEach(t => { t.shut = false; t.img.setTexture('trapOpen'); });
+            this.traps.forEach(t => { if (t.keep) return; t.shut = false; t.img.setTexture('trapOpen').setPosition(t.x, t.y + 6).setRotation(0); });
+            this.resetSpider();
             if (cp.x < LEVEL.box.x + 200) {
                 this.box.setPosition(LEVEL.box.x, LEVEL.box.y - 40);
                 this.box.body.reset(LEVEL.box.x, LEVEL.box.y - 40);
@@ -620,8 +697,10 @@
 
             // trampas para osos
             this.traps.forEach(t => {
+                t.glintT -= dt;
+                if (t.glintT < 0) { t.glintT = 2 + Math.random() * 3; if (!t.shut) this.tweens.add({ targets: t.glint, alpha: { from: 0, to: 0.9 }, scale: { from: 0.4, to: 1.3 }, duration: 260, yoyo: true }); }
                 if (t.shut || !alive) return;
-                if (Math.abs(b.center.x - t.x) < 16 && b.bottom >= t.y - 6 && b.bottom <= t.y + 4) {
+                if (Math.abs(b.center.x - t.x) < 20 && b.bottom >= t.y - 6 && b.bottom <= t.y + 4) {
                     t.shut = true; t.img.setTexture('trapShut');
                     SFX.trapSnap();
                     this.cameras.main.shake(180, 0.008);
@@ -683,6 +762,9 @@
 
             // roca rodante
             this.updateBoulder(dt, pl, alive);
+
+            // la araña
+            this.updateSpider(dt, pl);
         }
 
         drawWater() {
@@ -756,11 +838,372 @@
                 this.kill('boulder');
         }
 
+
+        /* =================================================================
+         * 4b. LA ARAÑA
+         *   Fase 1: desde la copa de los árboles apuñala con una pata donde
+         *           estás parado. Hay que atraer el golpe hacia la trampa.
+         *   Fase 2: herida, más adelante cae sobre ti y te envuelve en
+         *           telaraña. Hay que forcejear (saltar) antes de que vuelva.
+         * ================================================================= */
+        createSpider() {
+            const S = LEVEL.spider;
+            this.spG = this.add.graphics().setDepth(12.5);
+            this.spiderWounded = false;
+            this.stabDeaths = 0;
+            const bar = this.add.zone(S.barrierX + 15, 280, 30, 560);
+            this.physics.add.existing(bar, true);
+            this.barrierCollider = this.physics.add.collider(this.player, bar);
+            this.legPieces = [];
+            const serif = '"Cormorant Garamond", Georgia, serif';
+            this.cocoonHint = this.add.text(0, 0, this.isTouch ? 'toca ↑ para liberarte' : 'salta para liberarte', {
+                fontFamily: serif, fontStyle: 'italic', fontSize: '26px', color: '#cfcfcf'
+            }).setOrigin(0.5).setDepth(13).setAlpha(0);
+            const trap = this.traps.find(t => t.spider);
+            this.spiderHint = this.add.text(trap.x, 470, 'la trampa…', {
+                fontFamily: serif, fontStyle: 'italic', fontSize: '26px', color: '#151515'
+            }).setOrigin(0.5).setDepth(9).setAlpha(0);
+            this.resetSpider();
+        }
+
+        resetSpider() {
+            const S = LEVEL.spider, G = S.groundY;
+            const legs = [];
+            const bases = [[-78, 20], [-70, 26], [-58, 30], [-44, 32], [-30, 32], [-18, 30], [-6, 26], [4, 20]];
+            for (let i = 0; i < 8; i++) {
+                const tip = i === 0 ? [S.bodyX - 260, 250]
+                    : i === 1 ? [S.bodyX - 200, 330]
+                    : [S.plantedLegs[i - 2], G + 4];
+                const long = i < 2;
+                legs.push({ base: bases[i], tip: tip.slice(), home: tip.slice(), l1: long ? 360 : 280, l2: long ? 430 : 330, lost: false });
+            }
+            if (this.spiderWounded) legs[0].lost = true;
+            this.sp = {
+                mode: this.spiderWounded ? 'away' : 'hunt',
+                bx: S.bodyX, by: this.spiderWounded ? -500 : S.bodyY,
+                legs, phase: 'rest', pt: 0, tx: 0, aimFrom: null, mt: 0
+            };
+            this.barrierCollider.active = !this.spiderWounded;
+            this.cocoonWrap = 0; this.cocooned = false; this.cocoonHits = 0; this.cocoonShake = 0;
+        }
+
+        /** IK de dos segmentos para una pata (rodilla hacia arriba, como un arácnido). */
+        legKnee(B, T, l1, l2, up = true) {
+            const dx = T[0] - B[0], dy = T[1] - B[1];
+            const d = clamp(Math.hypot(dx, dy), 10, l1 + l2 - 0.5);
+            const a = Math.atan2(dy, dx);
+            const c = clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1);
+            const k1 = a + Math.acos(c), k2 = a - Math.acos(c);
+            const K1 = [B[0] + Math.cos(k1) * l1, B[1] + Math.sin(k1) * l1];
+            const K2 = [B[0] + Math.cos(k2) * l1, B[1] + Math.sin(k2) * l1];
+            return (K1[1] < K2[1]) === up ? K1 : K2;
+        }
+
+        updateSpider(dt, pl) {
+            const S = LEVEL.spider, G = S.groundY, sp = this.sp, b = this.player.body;
+            const px = b.center.x, alive = this.state === 'play';
+            sp.mt += dt;
+            const legs = sp.legs, stab = legs[0];
+            const restTip = [sp.bx - 250 + Math.sin(this.t * 1.3) * 25, 240 + Math.sin(this.t * 2.1) * 20];
+
+            // pata "en el aire" que se mueve inquieta
+            if (sp.mode === 'hunt' || sp.mode === 'caught') {
+                legs[1].tip[0] = lerp(legs[1].tip[0], sp.bx - 190 + Math.sin(this.t * 1.7) * 40, dt * 3);
+                legs[1].tip[1] = lerp(legs[1].tip[1], 320 + Math.sin(this.t * 2.6) * 30, dt * 3);
+                for (let i = 2; i < 8; i++) legs[i].tip[1] = G + 4 - Math.max(0, Math.sin(this.t * 2 + i)) * 3;
+                sp.by = S.bodyY + Math.sin(this.t * 1.6) * 6;
+            }
+
+            if (sp.mode === 'hunt') {
+                const active = px > S.huntFrom && alive;
+                sp.pt += dt;
+                const aimTime = px > S.barrierX - 110 ? 0.42 : 0.9;
+                if (sp.phase === 'rest') {
+                    stab.tip[0] = lerp(stab.tip[0], restTip[0], dt * 4); stab.tip[1] = lerp(stab.tip[1], restTip[1], dt * 4);
+                    if (active && sp.pt > 0.55) {
+                        sp.phase = 'aim'; sp.pt = 0; sp.tx = px;
+                        SFX.tick(); this.time.delayedCall(90, () => SFX.tick()); this.time.delayedCall(170, () => SFX.tick());
+                    }
+                } else if (sp.phase === 'aim') {
+                    if (sp.pt < aimTime * 0.62) sp.tx = lerp(sp.tx, px, Math.min(1, dt * 9));   // sigue y luego se fija
+                    const shake = Math.sin(this.t * 40) * 3;
+                    stab.tip[0] = lerp(stab.tip[0], sp.tx + 26 + shake, dt * 9);
+                    stab.tip[1] = lerp(stab.tip[1], G - 270, dt * 9);
+                    if (sp.pt > aimTime) { sp.phase = 'strike'; sp.pt = 0; sp.aimFrom = stab.tip.slice(); }
+                } else if (sp.phase === 'strike') {
+                    const k = Math.min(1, sp.pt / 0.085);
+                    stab.tip[0] = lerp(sp.aimFrom[0], sp.tx, k * k);
+                    stab.tip[1] = lerp(sp.aimFrom[1], G + 6, k * k);
+                    if (k >= 1) {
+                        sp.phase = 'stuck'; sp.pt = 0;
+                        SFX.stab(); this.cameras.main.shake(120, 0.006);
+                        this.dustFx.explode(7, sp.tx, G);
+                        const trap = this.traps.find(t => t.spider);
+                        if (!trap.shut && Math.abs(trap.x - sp.tx) < 44) {
+                            // ¡la pata cae en la trampa!
+                            trap.shut = true; trap.keep = true; trap.img.setTexture('trapShut');
+                            SFX.trapSnap(); SFX.screech();
+                            this.cameras.main.shake(500, 0.012);
+                            sp.mode = 'caught'; sp.mt = 0;
+                        } else if (alive && Math.abs(px - sp.tx) < 24 && b.bottom > G - 80) {
+                            this.stabDeaths++;
+                            this.kill('stab');
+                        }
+                    }
+                } else if (sp.phase === 'stuck') {
+                    if (sp.pt > 0.45) { sp.phase = 'pull'; sp.pt = 0; }
+                } else if (sp.phase === 'pull') {
+                    stab.tip[0] = lerp(stab.tip[0], restTip[0], dt * 6); stab.tip[1] = lerp(stab.tip[1], restTip[1], dt * 6);
+                    if (sp.pt > 0.4) { sp.phase = 'rest'; sp.pt = 0; }
+                }
+            } else if (sp.mode === 'caught') {
+                // forcejea con la trampa: la pata se sacude hasta arrancarse
+                const trap = this.traps.find(t => t.spider);
+                const k = sp.mt;
+                stab.tip[0] = sp.tx + Math.sin(k * 31) * 9;
+                stab.tip[1] = G + 4 - Math.abs(Math.sin(k * 8)) * 70 * Math.min(1, k * 2);
+                trap.img.setPosition(stab.tip[0], stab.tip[1] + 30).setRotation(Math.sin(k * 31) * 0.25);
+                sp.by = S.bodyY + Math.sin(k * 23) * 8;
+                if (k > 1.5) {
+                    // se arranca: el trozo de pata cae con la trampa
+                    const knee = this.legKnee([sp.bx + stab.base[0], sp.by + stab.base[1]], stab.tip, stab.l1, stab.l2);
+                    this.legPieces.push({ x1: knee[0], y1: knee[1], x2: stab.tip[0], y2: stab.tip[1], vy: -100, vx: -40, rot: 0, vr: -1.5 });
+                    this.tweens.add({ targets: trap.img, y: G + 6, rotation: 0.4, duration: 700, ease: 'Bounce.easeOut' });
+                    stab.lost = true;
+                    SFX.screech();
+                    this.cameras.main.shake(300, 0.01);
+                    sp.mode = 'retreat'; sp.mt = 0;
+                    this.spiderWounded = true;
+                    this.barrierCollider.active = false;
+                    this.spiderHint.setAlpha(0);
+                }
+            } else if (sp.mode === 'retreat') {
+                const k = Math.min(1, sp.mt / 2.2), e = k * k;
+                sp.bx = lerp(S.bodyX, S.bodyX + 500, e);
+                sp.by = lerp(S.bodyY, -520, e);
+                legs.forEach((l, i) => { if (i) { l.tip[0] = lerp(l.tip[0], sp.bx + l.base[0] * 2, dt * 2.5); l.tip[1] = lerp(l.tip[1], sp.by + 200, dt * 2.5); } });
+                if (k >= 1) sp.mode = 'away';
+            } else if (sp.mode === 'away') {
+                if (alive && px > S.cocoonTrigger) {
+                    // emboscada: cae del árbol justo delante
+                    sp.mode = 'drop'; sp.mt = 0; sp.bx = px + 75; sp.by = -420;
+                    legs.forEach((l, i) => { l.tip = [sp.bx + (i - 4) * 30, sp.by + 240]; l.l1 = 150; l.l2 = 185; });
+                    this.state = 'grabbed';
+                    b.setVelocity(0, b.velocity.y);
+                }
+            } else if (sp.mode === 'drop') {
+                const k = Math.min(1, sp.mt / 0.4);
+                sp.by = lerp(-420, G - 150, k * k);
+                legs.forEach((l, i) => {
+                    if (i === 0) return;
+                    const spread = [0, -1, -0.6, 1.2, 1.7, 2.3, 2.8, 3.2][i];
+                    l.tip[0] = lerp(l.tip[0], px + 40 + spread * 75, dt * 10);
+                    l.tip[1] = lerp(l.tip[1], i < 3 ? G - 40 : G + 4, dt * 10);
+                });
+                if (k >= 1) {
+                    sp.mode = 'wrap'; sp.mt = 0;
+                    SFX.thud(); SFX.screech(); this.cameras.main.shake(400, 0.012);
+                    this.dustFx.explode(25, px + 60, G);
+                    this.cocooned = true;
+                }
+            } else if (sp.mode === 'wrap') {
+                // la araña envuelve al personaje dando vueltas con dos patas
+                sp.by = G - 150 + Math.sin(sp.mt * 14) * 4;
+                sp.bx = lerp(sp.bx, px + 70, dt * 4);
+                [1, 2].forEach((i, j) => {
+                    const a = sp.mt * 13 + j * Math.PI;
+                    legs[i].tip = [px + Math.cos(a) * 20, b.bottom - 32 + Math.sin(a) * 26];
+                });
+                this.cocoonWrap = Math.min(1, sp.mt / 1.7);
+                if (Math.floor(sp.mt / 0.22) !== Math.floor((sp.mt - dt) / 0.22)) SFX.web();
+                if (sp.mt > 1.9) { sp.mode = 'climb'; sp.mt = 0; }
+            } else if (sp.mode === 'climb') {
+                const k = Math.min(1, sp.mt / 0.9);
+                sp.by = lerp(G - 150, 60, 1 - (1 - k) * (1 - k));
+                legs.forEach((l, i) => { if (i) { l.tip[0] = lerp(l.tip[0], sp.bx + (i - 4) * 40, dt * 5); l.tip[1] = lerp(l.tip[1], sp.by + 190 + (i % 2) * 30, dt * 5); } });
+                if (k >= 1) {
+                    sp.mode = 'lurk'; sp.mt = 0;
+                    this.state = 'cocoon';
+                    this.cocoonHits = 0;
+                }
+            } else if (sp.mode === 'lurk') {
+                // baja despacio sobre el capullo: hay que liberarse antes
+                sp.bx = lerp(sp.bx, px + 30, dt * 0.8);
+                sp.by += (48 + sp.mt * 4) * dt;
+                legs.forEach((l, i) => {
+                    if (!i) return;
+                    const a = this.t * 3 + i;
+                    l.tip[0] = lerp(l.tip[0], sp.bx + (i - 4) * 38 + Math.sin(a) * 10, dt * 4);
+                    l.tip[1] = lerp(l.tip[1], sp.by + 200 + Math.cos(a) * 15, dt * 4);
+                });
+                if (Math.floor(sp.mt * 3) !== Math.floor((sp.mt - dt) * 3)) SFX.tick();
+                if (sp.by + 175 > b.top) this.kill('spider');
+            } else if (sp.mode === 'feed') {
+                sp.by -= 380 * dt;
+            } else if (sp.mode === 'flee') {
+                sp.by -= (300 + sp.mt * 900) * dt;
+                legs.forEach((l, i) => { if (i) { l.tip[0] = lerp(l.tip[0], sp.bx + (i - 4) * 30, dt * 6); l.tip[1] = lerp(l.tip[1], sp.by + 150, dt * 6); } });
+                if (sp.by < -700) sp.mode = 'gone';
+            }
+
+            // trozos de pata cayendo
+            this.legPieces.forEach(pc => {
+                if (pc.rest) return;
+                pc.vy += 1400 * dt; const dy = pc.vy * dt, dx = pc.vx * dt;
+                pc.x1 += dx; pc.x2 += dx; pc.y1 += dy; pc.y2 += dy;
+                const low = Math.max(pc.y1, pc.y2);
+                if (low > G + 2) { const fix = low - (G + 2); pc.y1 -= fix; pc.y2 -= fix; pc.y1 = lerp(pc.y1, G - 4, 0.5); pc.rest = true; }
+            });
+
+            // pista si muere varias veces
+            const trap = this.traps.find(t => t.spider);
+            const showHint = this.stabDeaths >= 2 && !this.spiderWounded && Math.abs(px - trap.x) < 300 && alive;
+            this.spiderHint.setAlpha(lerp(this.spiderHint.alpha, showHint ? 0.65 : 0, 0.04));
+            const showC = this.state === 'cocoon';
+            this.cocoonHint.setPosition(px, b.bottom + 45).setAlpha(lerp(this.cocoonHint.alpha, showC ? 0.75 : 0, 0.08));
+
+            this.cocoonShake = Math.max(0, this.cocoonShake - dt * 5);
+            this.drawSpider();
+        }
+
+        updateCocoon(dt, tch) {
+            const b = this.player.body, k = this.keys;
+            const left = k.left.isDown || k.a.isDown || tch.left;
+            const right = k.right.isDown || k.d.isDown || tch.right;
+            const jumpHeld = k.up.isDown || k.w.isDown || k.space.isDown || tch.jump;
+            const jumpPressed = jumpHeld && !this.jumpHeldPrev;
+            this.jumpHeldPrev = jumpHeld;
+            const dir = (right ? 1 : 0) - (left ? 1 : 0);
+            const onG = this.onGround;
+            if (onG) b.setVelocityX(b.velocity.x * 0.7);
+            this.hopCd = Math.max(0, (this.hopCd || 0) - dt);
+            if (dir && onG && this.hopCd <= 0) {                 // saltitos dentro del capullo
+                this.facing = dir;
+                b.setVelocity(dir * 95, -220);
+                this.hopCd = 0.35; this.cocoonHits += 0.4; this.cocoonShake = 0.6;
+                SFX.struggle();
+            }
+            if (jumpPressed) {                                    // forcejear
+                this.cocoonHits += 1; this.cocoonShake = 1;
+                if (onG) b.setVelocityY(-130);
+                SFX.struggle();
+                this.splashFx.explode(3, b.center.x, b.center.y);
+            }
+            if (this.cocoonHits >= LEVEL.spider.freeHits) {
+                // ¡libre!
+                this.cocoonWrap = 0; this.cocooned = false;
+                this.state = 'play';
+                this.splashFx.explode(30, b.center.x, b.center.y);
+                this.shardFx.explode(8, b.center.x, b.center.y);
+                SFX.tear(); SFX.screech();
+                this.cameras.main.shake(250, 0.008);
+                this.sp.mode = 'flee'; this.sp.mt = 0;
+            }
+        }
+
+        drawSpider() {
+            const g = this.spG, sp = this.sp, C = 0x030303;
+            g.clear();
+            this.legPieces.forEach(pc => this.taper(g, pc.x1, pc.y1, pc.x2, pc.y2, 7, 2, C));
+            if (sp.mode === 'gone' || sp.mode === 'away') return;
+            const cam = this.cameras.main;
+            if (sp.bx < cam.scrollX - 900 || sp.bx > cam.scrollX + VIEW_W + 900) return;
+            const bx = sp.bx, by = sp.by;
+
+            // hilo de seda del que cuelga
+            if (['drop', 'wrap', 'climb', 'lurk', 'feed', 'flee'].includes(sp.mode)) {
+                g.lineStyle(1.5, 0xc8c8c8, 0.55); g.lineBetween(bx + 10, by - 40, bx + 14, by - 900);
+            }
+            // hilos hacia el capullo
+            if (this.cocoonWrap > 0 && (sp.mode === 'climb' || sp.mode === 'lurk' || sp.mode === 'wrap')) {
+                const b = this.player.body;
+                g.lineStyle(1, 0xd0d0d0, 0.45);
+                g.lineBetween(bx - 30, by + 30, b.center.x, b.top + 8);
+                g.lineBetween(bx - 10, by + 34, b.center.x + 6, b.top + 12);
+            }
+
+            // patas
+            sp.legs.forEach((l, i) => {
+                const B = [bx + l.base[0], by + l.base[1]];
+                const K = this.legKnee(B, l.tip, l.l1, l.l2);
+                this.taper(g, B[0], B[1], K[0], K[1], 11, 8, C);
+                g.fillStyle(C, 1); g.fillCircle(K[0], K[1], 4.5);
+                if (l.lost) {                                       // muñón
+                    const dx = l.tip[0] - K[0], dy = l.tip[1] - K[1], d = Math.hypot(dx, dy) || 1;
+                    this.taper(g, K[0], K[1], K[0] + dx / d * 40, K[1] + dy / d * 40, 8, 5, C);
+                    return;
+                }
+                this.taper(g, K[0], K[1], l.tip[0], l.tip[1], 8, 1.6, C);
+                // pelillos
+                for (let h = 1; h < 4; h++) {
+                    const t = h / 4, x = lerp(K[0], l.tip[0], t), y = lerp(K[1], l.tip[1], t);
+                    g.lineStyle(1.2, C, 1); g.lineBetween(x, y, x + 6, y - 5);
+                }
+            });
+
+            // cuerpo: cefalotórax + abdomen grande, todo en silueta
+            const breathe = 1 + Math.sin(this.t * 3) * 0.03;
+            g.fillStyle(C, 1);
+            g.fillEllipse(bx - 40, by + 18, 76, 52);
+            const ab = [];
+            for (let i = 0; i < 28; i++) {
+                const a = i / 28 * Math.PI * 2;
+                let rx = 72 * breathe, ry = 56 * breathe;
+                if (Math.cos(a) > 0.6) rx *= 1.08;               // abdomen un poco apuntado
+                const x = Math.cos(a) * rx, y = Math.sin(a) * ry;
+                const r = -0.25;
+                ab.push({ x: bx + 55 + x * Math.cos(r) - y * Math.sin(r), y: by - 6 + x * Math.sin(r) + y * Math.cos(r) });
+            }
+            g.fillPoints(ab, true);
+            g.lineStyle(1.3, C, 1);
+            ab.forEach((p, i) => { if (i % 2) g.lineBetween(p.x, p.y, p.x + (p.x - bx - 55) * 0.12, p.y + (p.y - by + 6) * 0.12); });
+            // quelíceros
+            g.fillTriangle(bx - 74, by + 24, bx - 98, by + 46, bx - 70, by + 36);
+            g.fillTriangle(bx - 64, by + 30, bx - 82, by + 54, bx - 58, by + 40);
+            // un brillo húmedo en los ojos (solo un destello gris, nada luminoso)
+            g.fillStyle(0x6a6a6a, 0.7); g.fillCircle(bx - 66, by + 10, 2); g.fillCircle(bx - 59, by + 7, 1.6);
+        }
+
+        /** Segmento con grosor decreciente (patas). */
+        taper(g, x1, y1, x2, y2, w1, w2, color) {
+            const dx = x2 - x1, dy = y2 - y1, d = Math.hypot(dx, dy) || 1;
+            const nx = -dy / d, ny = dx / d;
+            g.fillStyle(color, 1);
+            g.fillPoints([
+                { x: x1 + nx * w1 / 2, y: y1 + ny * w1 / 2 }, { x: x2 + nx * w2 / 2, y: y2 + ny * w2 / 2 },
+                { x: x2 - nx * w2 / 2, y: y2 - ny * w2 / 2 }, { x: x1 - nx * w1 / 2, y: y1 - ny * w1 / 2 }
+            ], true);
+        }
+
+        /** Capullo de seda sobre el personaje. */
+        drawCocoon(g) {
+            const w = this.cocoonWrap; if (w <= 0) return;
+            const b = this.player.body;
+            const sx = Math.sin(this.t * 55) * 2.5 * this.cocoonShake;
+            const cx = b.center.x + sx, bottom = b.bottom + 2, h = 52 * w;
+            const pts = [];
+            for (let i = 0; i <= 24; i++) {
+                const a = i / 24 * Math.PI * 2;
+                pts.push({ x: cx + Math.cos(a) * 14.5, y: bottom - h / 2 + Math.sin(a) * h / 2 });
+            }
+            g.fillStyle(0xb9b9b9, 0.97); g.fillPoints(pts, true);
+            g.lineStyle(1.2, 0x6c6c6c, 0.9);
+            for (let i = 0; i < Math.floor(11 * w); i++) {
+                const y = bottom - 4 - i * 4.6, d = (i % 2 ? 1 : -1);
+                g.lineBetween(cx - 13, y + d * 3, cx + 13, y - d * 3);
+            }
+            g.lineStyle(1, 0x8a8a8a, 1); g.strokePoints(pts, true);
+            // hilos sueltos
+            g.lineStyle(1, 0xcfcfcf, 0.6);
+            g.lineBetween(cx + 10, bottom - h + 6, cx + 22 + Math.sin(this.t * 3) * 4, bottom - h - 6);
+            g.lineBetween(cx - 12, bottom - h * 0.4, cx - 22, bottom - h * 0.4 + 9);
+        }
+
         /* =================================================================
          * 5. MUERTE, CHECKPOINTS Y FINAL
          * ================================================================= */
         kill(cause) {
-            if (this.state !== 'play' && this.state !== 'ending') return;
+            if (!['play', 'ending', 'cocoon', 'grabbed'].includes(this.state)) return;
             this.state = 'dead';
             this.lastDeath = cause;
             const b = this.player.body;
@@ -773,6 +1216,13 @@
                 return;
             }
             SFX.death();
+            if (cause === 'spider') {
+                // la araña se lleva el capullo hacia arriba
+                b.setAllowGravity(false); b.setVelocity(0, -380);
+                this.sp.mode = 'feed'; SFX.screech();
+                this.respawnSoon(1100);
+                return;
+            }
             if (cause === 'drown') {
                 b.setVelocity(0, 25); b.setAllowGravity(false);
                 this.bubbleFx.explode(10, b.center.x, b.top);
@@ -810,6 +1260,7 @@
             this.scarf.forEach(s => { s.x = s.px = cp.x; s.y = s.py = cp.y - 48; });
             this.hidePlayer = false;
             this.deathPose = null;
+            this.cocooned = false; this.cocoonWrap = 0;
             this.state = 'play';
             this.cameras.main.startFollow(this.player, true, 0.075, 0.075, 0, CAM_OY);
             this.cameras.main.fadeIn(900, 0, 0, 0);
@@ -819,13 +1270,14 @@
         updateCheckpoints() {
             const x = this.player.body.center.x, onG = this.onGround;
             LEVEL.checkpoints.forEach(c => {
+                if (c.requires && !this[c.requires]) return;
                 if (onG && x > c.x && c.x > this.checkpoint.x && Math.abs(this.player.body.bottom - c.y) < 8) this.checkpoint = c;
             });
         }
 
         updateEnding(dt) {
             const E = LEVEL.ending, x = this.player.body.center.x;
-            const k = clamp((x - 6500) / (E.x - 6500), 0, 1);
+            const k = clamp((x - (E.x - 880)) / 880, 0, 1);
             this.endGlow.setAlpha(0.2 + k * 0.6).setScale(7 + k * 4 + Math.sin(this.t * 1.5) * 0.3);
             if (this.state === 'play') this.whiteout.setAlpha(k * 0.22);
 

@@ -179,6 +179,27 @@
             this._tone({ freq: 587, dur: 2.5, gain: 0.012, attack: 1, wet: 1 });
         },
 
+        /* ---- araña ---- */
+        stab() {
+            this._noise({ dur: 0.12, type: 'highpass', freq: 1800, gain: 0.25, wet: 0.4 });
+            this._tone({ freq: 140, to: 45, dur: 0.3, gain: 0.3, wet: 0.3 });
+        },
+        screech() {
+            [0, 0.07, 0.15].forEach((w, i) => {
+                this._tone({ freq: 700 + i * 230, to: 2300 + i * 300, dur: 0.9, type: 'sawtooth', gain: 0.035, attack: 0.05, wet: 0.8, when: w });
+                this._tone({ freq: 2600 - i * 200, to: 900, dur: 0.7, type: 'square', gain: 0.012, wet: 0.8, when: 0.35 + w });
+            });
+            this._noise({ dur: 0.8, type: 'bandpass', freq: 3000, q: 3, gain: 0.08, wet: 0.7 });
+        },
+        tick() { this._noise({ dur: 0.025, type: 'highpass', freq: 3500, gain: 0.05, wet: 0.3 }); },
+        web() { this._noise({ dur: 0.22, type: 'bandpass', freq: 2400, q: 2, gain: 0.07, attack: 0.04, sweepTo: 1200, wet: 0.4 }); },
+        effort() { this._noise({ dur: 0.25, type: 'bandpass', freq: 500, q: 1.5, gain: 0.04, attack: 0.05, wet: 0.2 }); },
+        tear() {
+            this._noise({ dur: 0.5, type: 'highpass', freq: 4000, sweepTo: 800, gain: 0.25, wet: 0.5 });
+            for (let i = 0; i < 8; i++) this._noise({ dur: 0.03, type: 'highpass', freq: 2500, gain: 0.12, when: Math.random() * 0.4 });
+        },
+        struggle() { this._noise({ dur: 0.15, type: 'bandpass', freq: 1600, q: 1.2, gain: 0.08, wet: 0.2 }); },
+
         /** Bucles con intensidad controlable (péndulo, roca, caja). */
         loop(name, { freq = 400, q = 1, type = 'bandpass', brown = false }) {
             if (!this.ctx) return null;
