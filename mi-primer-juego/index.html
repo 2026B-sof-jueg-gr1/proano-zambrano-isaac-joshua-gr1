@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <title>UMBRAL — Mi Juego Phaser · ISWD823</title>
+    <meta name="description" content="UMBRAL: un plataformero atmosférico en blanco y negro hecho con Phaser 4.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300&display=swap" rel="stylesheet">
+    <style>
+        html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+        body { display: flex; justify-content: center; align-items: center; }
+        #juego { width: 100%; height: 100%; }
+        canvas { display: block; touch-action: none; }
+        #cargando {
+            position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+            color: #777; font: 300 18px 'Cormorant Garamond', Georgia, serif; letter-spacing: .5em;
+            pointer-events: none; transition: opacity 1s;
+        }
+        noscript { color: #aaa; font-family: Georgia, serif; }
+    </style>
+</head>
+<body>
+    <div id="cargando">CARGANDO</div>
+    <div id="juego"></div>
+    <noscript>Este juego necesita JavaScript.</noscript>
+
+    <!-- Phaser 4 vía CDN (como pide el taller) con copia local de respaldo -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@4.2.1/dist/phaser.min.js"></script>
+    <script>window.Phaser || document.write('<script src="lib/phaser.min.js"><\/script>');</script>
+
+    <script src="audio.js"></script>
+    <script src="art.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
