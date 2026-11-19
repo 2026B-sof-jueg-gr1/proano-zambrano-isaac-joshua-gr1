@@ -89,7 +89,23 @@
             { x: 720,  y: 455, text: '←   →' },
             { x: 960,  y: 455, text: '↑  /  espacio' },
             { x: 2790, y: 420, text: 'empuja' }
-        ]
+        ],
+        // El palo del abuelo: aparece clavado en el bosque, poco después de despertar
+        stick: { x: 650, y: 560 },
+        // Recuerdos: aparecen cuando el niño ya lleva el palo y pasa cerca.
+        // bush: 'small' | 'big' (zarza con moras) · music: el soundtrack suena apagado un momento
+        memories: [
+            { x: 650,  y: 560, stick: true, text: 'Siempre había un palo esperando en el camino.\nAlguien me enseñó a encontrarlo.' },
+            { x: 2560, y: 540, bush: 'small', text: 'Cada hoja tenía un nombre.\nYa no recuerdo la mitad.' },
+            { x: 4540, y: 560, bush: 'small', text: 'A veces el bosque estaba lleno de voces.\nA veces, solo de dos pasos.' },
+            { x: 5190, y: 560, text: 'Hubo un día en que corrimos\nsin saber de qué.' },
+            { x: 6330, y: 560, bush: 'big', music: true, text: 'Caer también puede sonar a risa.\nY al levantarse, siempre había algo dulce.' },
+            { x: 8560, y: 560, text: 'Los caminos se hicieron largos.\nLas visitas, cortas.' },
+            { x: 8900, y: 560, text: 'Un día, el camino lo recorrió solo.' },
+            { x: 9200, y: 560, text: 'Me preguntó cuándo volveríamos.\nLe dije que pronto.' }
+        ],
+        // Última línea, sobre la pantalla blanca del final, antes de los créditos
+        epitaph: 'Lo que queda de alguien\na veces cabe en una mano.'
     };
 
     // Soundtrack (musica/umbral.mp3): volumen al empezar y tramo en el que se apaga al hundirse
@@ -147,7 +163,10 @@
             add('shard', ART.shard());
             add('roomBg', ART.roomBg());
             add('roomBed', ART.roomBed());
-            add('cane', ART.cane());
+            add('cane', ART.cane(true));
+            add('caneDark', ART.cane(false));
+            add('bramble', ART.bramble(130, 70, 5, 10));
+            add('brambleBig', ART.bramble(300, 150, 9, 40));
             ART.levelChunks(LEVEL, 1024).forEach((ch, i) => add('chunk' + i, ch.canvas));
         }
 
@@ -200,6 +219,7 @@
 
             this.createPlayer();
             this.createHazards();
+            this.createStory();
             this.createAtmosphere();
             this.createInput();
             this.createUI();
@@ -382,14 +402,17 @@
             const winGlow = this.add.image(-200, -160, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(1.7).setAlpha(0.22);
             const bed = this.add.image(0, 0, 'roomBed').setScale(0.5).setOrigin(B.ox / B.w, B.oy / B.h);
             const kid = this.add.graphics();
+            // el palo del abuelo apoyado en la esquina: versión apagada debajo y encendida encima
+            const caneOff = this.add.image(178, R.floor, 'caneDark').setScale(0.5).setOrigin(C.ox / C.w, C.oy / C.h).setRotation(-0.12);
             const cane = this.add.image(178, R.floor, 'cane').setScale(0.5).setOrigin(C.ox / C.w, C.oy / C.h).setRotation(-0.12);
-            const caneGlow = this.add.image(176, -18, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0.2);
+            const caneGlow = this.add.image(173, -18, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(0.5).setAlpha(0);
             const fog = this.add.image(0, 160, 'fog2').setScale(0.5).setAlpha(0);
             const dark = this.add.rectangle(-3000, -2000, 6000, 4000, 0x000000).setOrigin(0).setAlpha(0);
-            room.add([bg, winGlow, bed, kid, cane, caneGlow, fog, dark]);
+            room.add([bg, winGlow, bed, kid, caneOff, cane, caneGlow, fog, dark]);
             this.roomParts = { bg, winGlow, bed, kid, cane, caneGlow, fog, dark };
             this.roomPose = 0;                  // 0 = sentado, 1 = tumbado
-            this.roomCaneGlow = 0.2;
+            this.roomCaneGlow = 1;              // 1 = su brillo débil normal, 0 = apagado
+            this.caneFlick = 1; this.caneDying = false;
             this.roomActive = true;
         }
 
@@ -416,10 +439,11 @@
                 tw({ targets: P.dark, alpha: 0.6, duration: 3800 });
                 tw({ targets: P.fog, alpha: 0.65, y: -40, duration: 4200, ease: 'Sine.easeOut' });
                 tw({ targets: P.winGlow, alpha: 0.03, duration: 3000 });
-                // el bastón brilla una última vez… y se queda en la habitación
-                tw({ targets: this, roomCaneGlow: 0.6, duration: 900, yoyo: true, hold: 300, onComplete: () => {
-                    tw({ targets: this, roomCaneGlow: 0, duration: 1600 });
-                } });
+            });
+            // mientras se tumba, la luz del palo empieza a fallar… y se apaga. Se queda en la habitación.
+            this.time.delayedCall(1700, () => {
+                this.caneDying = true;
+                tw({ targets: this, roomCaneGlow: 0, duration: 2600, ease: 'Cubic.easeIn' });
             });
             this.time.delayedCall(5200, () => {
                 tw({ targets: room, alpha: 0, duration: 2600, ease: 'Sine.easeIn', onComplete: () => {
@@ -431,8 +455,13 @@
 
         updateRoom(dt) {
             const P = this.roomParts;
-            P.caneGlow.setAlpha(this.roomCaneGlow * (0.85 + 0.15 * Math.sin(this.t * 2.1)));
-            P.cane.setAlpha(0.75 + this.roomCaneGlow * 0.4);
+            // parpadeo: casi siempre encendido y débil, con caídas cortas al azar (más seguidas cuando se está apagando)
+            const dipChance = this.caneDying ? 0.16 : 0.025;
+            const target = Math.random() < dipChance ? Math.random() * 0.25 : 0.8 + 0.2 * Math.sin(this.t * 2.3);
+            this.caneFlick = lerp(this.caneFlick, target, target < this.caneFlick ? 0.6 : 0.12);
+            const k = this.roomCaneGlow * this.caneFlick;
+            P.caneGlow.setAlpha(0.13 * k);
+            P.cane.setAlpha(clamp(0.25 + 0.6 * k, 0, 1) * (this.roomCaneGlow > 0.02 ? 1 : 0));
             this.drawRoomKid(P.kid, this.roomPose);
         }
 
@@ -474,6 +503,91 @@
             // pierna y brazo de delante
             limb(J.hip, J.knee, 5.5); limb(J.knee, J.foot, 5);
             limb(J.neck, J.elbow, 4); limb(J.elbow, J.hand, 3.6);
+        }
+
+        /* =================================================================
+         * 2c. LA HISTORIA: el palo del abuelo y los recuerdos
+         * ================================================================= */
+        createStory() {
+            const L = LEVEL, St = L.stick, C = ART.CANE;
+            const serif = '"Cormorant Garamond", Georgia, serif';
+            this.hasStick = START_X !== null && START_X > St.x;
+            this.stickGlow = this.add.image(0, 0, 'glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(12.2).setScale(0.35).setAlpha(0).setVisible(false);
+
+            // el palo clavado en el suelo, brillando
+            this.stickGround = this.add.image(St.x, St.y + 8, 'cane').setOrigin(C.ox / C.w, C.oy / C.h)
+                .setScale(0.42).setRotation(0.16).setDepth(11).setVisible(!this.hasStick);
+            this.stickGroundGlow = this.add.image(St.x + 5, St.y - 40, 'glow').setBlendMode(Phaser.BlendModes.ADD)
+                .setDepth(11.5).setScale(0.9).setAlpha(0).setVisible(!this.hasStick);
+
+            // recuerdos
+            this.memories = L.memories.map(m => {
+                const o = { ...m, seen: false };
+                if (m.bush) {
+                    const big = m.bush === 'big';
+                    o.bushImg = this.add.image(m.x, m.y + 6, big ? 'brambleBig' : 'bramble').setOrigin(0.5, 1).setDepth(9.5);
+                    o.bushGlow = this.add.image(m.x, m.y - (big ? 70 : 32), 'glow').setBlendMode(Phaser.BlendModes.ADD)
+                        .setDepth(9.6).setScale(big ? 2.2 : 1.1).setAlpha(0);
+                }
+                o.txt = this.add.text(m.x, m.y - 190, m.text, {
+                    fontFamily: serif, fontStyle: 'italic', fontSize: '27px', color: '#101010', align: 'center', lineSpacing: 6
+                }).setOrigin(0.5).setDepth(13.6).setAlpha(0);
+                // parche de niebla clara detrás del texto: se lee también sobre los troncos
+                o.halo = this.add.image(m.x, m.y - 190, 'glow').setScale(o.txt.width / 70, 1.5).setDepth(13.5).setAlpha(0);
+                return o;
+            });
+            this.memMusicToken = 0;
+        }
+
+        /** El soundtrack suena apagado, "desde otra habitación", unos segundos. */
+        memoryMusic(secs = 10) {
+            this.introMusic = false;
+            SFX.playMusic({ volume: 0.45, fade: 1.5, muffled: true });
+            const token = ++this.memMusicToken;
+            this.time.delayedCall(secs * 1000, () => {
+                if (token === this.memMusicToken && this.state !== 'ending' && this.state !== 'credits') SFX.stopMusic(4);
+            });
+        }
+
+        updateStory(dt) {
+            const b = this.player.body, px = b.center.x, St = LEVEL.stick;
+            const alive = this.state === 'play' || this.state === 'ending';
+
+            // el palo esperando en el suelo
+            if (!this.hasStick) {
+                const pulse = 0.85 + 0.15 * Math.sin(this.t * 2.2) - (Math.random() < 0.02 ? 0.3 : 0);
+                this.stickGroundGlow.setAlpha(0.32 * pulse);
+                if (this.state === 'play' && this.onGround && Math.abs(px - St.x) < 26) this.pickStick();
+            }
+
+            // recuerdos
+            this.memories.forEach(m => {
+                const d = Math.abs(px - m.x);
+                if (!m.seen && alive && this.hasStick && d < 150) {
+                    m.seen = true;
+                    if (m.bushGlow) {
+                        this.tweens.add({ targets: m.bushGlow, alpha: 0.45, duration: 900, yoyo: true, hold: 600,
+                            onComplete: () => this.tweens.add({ targets: m.bushGlow, alpha: 0.12, duration: 1200 }) });
+                    }
+                    if (!m.stick) SFX.checkpoint();
+                    if (m.music) this.memoryMusic(12);
+                }
+                const target = m.seen && d < 270 && this.state !== 'credits' ? 0.85 : 0;
+                m.txt.setAlpha(lerp(m.txt.alpha, target, 0.03));
+                m.halo.setAlpha(m.txt.alpha * 0.6);
+            });
+        }
+
+        pickStick() {
+            this.hasStick = true;
+            const St = LEVEL.stick;
+            this.stickGround.setVisible(false);
+            this.tweens.add({ targets: this.stickGroundGlow, alpha: 0.9, scale: 2.4, duration: 450, yoyo: true,
+                onComplete: () => this.stickGroundGlow.setVisible(false) });
+            this.dustFx.explode(6, St.x, St.y);
+            this.cameras.main.flash(500, 40, 40, 40);
+            SFX.checkpoint();
+            this.memoryMusic(11);
         }
 
         /* =================================================================
@@ -766,6 +880,24 @@
             // pierna y brazo de delante
             limb(hip, legs[0].knee, 5.5); limb(legs[0].knee, legs[0].foot, 5);
             limb(sh, arms[0].el, 4); limb(arms[0].el, arms[0].hand, 3.6);
+
+            // el palo del abuelo en la mano: se apoya en el suelo al caminar, cuelga en el aire
+            const showStick = this.hasStick && !this.cocooned;
+            if (showStick) {
+                const hd = arms[0].hand;
+                const plant = this.onGround && pb < 0.5 && this.state !== 'dead';
+                this.stickPlant = lerp(this.stickPlant || 0, plant ? 1 : 0, Math.min(1, dt * 10));
+                const bG = [hd[0] + 9 + Math.sin(ph) * 5 * run, -1], bA = [hd[0] + 5, hd[1] + 30];
+                const bot = mix(bA, bG, this.stickPlant);
+                const dx = hd[0] - bot[0], dy = hd[1] - bot[1], dd = Math.hypot(dx, dy) || 1;
+                const top = [hd[0] + dx / dd * 24, hd[1] + dy / dd * 24];
+                const A = T(bot[0], bot[1]), B = T(top[0], top[1]);
+                g.lineStyle(4.2, C, 1); g.lineBetween(A[0], A[1], B[0], B[1]);
+                g.lineStyle(1.6, 0xe6e6e6, 0.95); g.lineBetween(A[0], A[1], B[0], B[1]);
+                const M = T(hd[0], hd[1] + 4);
+                this.stickGlow.setPosition(M[0], M[1]).setAlpha(0.2 * (0.85 + 0.15 * Math.sin(this.t * 2.3)));
+            }
+            if (this.stickGlow) this.stickGlow.setVisible(showStick);
 
             this.drawCocoon(g);
         }
@@ -1424,9 +1556,21 @@
                 SFX.ending();
                 this.tweens.add({
                     targets: this.whiteout, alpha: 1, duration: 4200, ease: 'Sine.easeIn',
-                    onComplete: () => this.showCredits()
+                    onComplete: () => this.showEpitaph()
                 });
             }
+        }
+
+        /** Sobre el blanco: la última línea, en silencio, y luego los créditos. */
+        showEpitaph() {
+            const t = this.add.text(VIEW_W / 2, VIEW_H / 2, LEVEL.epitaph, {
+                fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', fontSize: '34px',
+                color: '#1a1a1a', align: 'center', lineSpacing: 10
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(46.5).setAlpha(0);
+            this.tweens.add({ targets: t, alpha: 0.9, duration: 2200, delay: 600 });
+            this.tweens.add({ targets: t, alpha: 0, duration: 1800, delay: 6800, onComplete: () => {
+                t.destroy(); this.showCredits();
+            } });
         }
 
         showCredits() {
@@ -1440,7 +1584,8 @@
                 [cy + 50, 'hecho con Phaser 4  ·  2026', 20, 'normal', 4],
                 [cy + 88, 'música: «Redecorate» (Stems Shutter) — Twenty One Pilots', 18, 'italic', 1],
                 [cy + 112, 'versión hecha con los stems por Nic Stonewood', 16, 'italic', 1],
-                [cy + 170, this.isTouch ? 'toca para volver a empezar' : 'pulsa cualquier tecla para volver a empezar', 18, 'italic', 1]
+                [cy + 155, 'para mi abuelo', 22, 'italic', 3],
+                [cy + 205, this.isTouch ? 'toca para volver a empezar' : 'pulsa cualquier tecla para volver a empezar', 18, 'italic', 1]
             ];
             const lastLine = lines.length - 1;
             const black = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000).setOrigin(0).setScrollFactor(0).setDepth(46).setAlpha(0);
@@ -1465,6 +1610,7 @@
             if (this.state !== 'dead') this.updatePlayer(dt);
             else this.player.body.setVelocityX(this.player.body.velocity.x * 0.92);
             this.updateHazards(dt);
+            this.updateStory(dt);
             this.updateCheckpoints();
             this.updateEnding(dt);
             this.drawPlayer(dt);

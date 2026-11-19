@@ -527,6 +527,7 @@
         g.beginPath(); g.arc(51, -75, 2.9, 0, Math.PI * 2); g.fill();          // niño
         g.lineWidth = 4; line(51, -71, 51, -65);
         g.lineWidth = 2.2; line(51, -65, 49, -60); line(51, -65, 53, -60);
+        g.lineWidth = 1.2; line(50, -71, 46, -68); line(46, -71, 45, -60);     // el niño también lleva su palito
         g.lineCap = 'butt';
 
         // mesita de noche con lámpara apagada
@@ -587,21 +588,69 @@
         return c;
     }
 
-    /** El bastón del abuelo: claro, para que brille sobre todo lo demás. */
-    const CANE = { ox: 10, oy: 98, w: 26, h: 100 };
-    function cane() {
+    /* ---------- el palo del abuelo ----------
+     * No es un bastón comprado: es un palo que encontró en el bosque, un poco
+     * torcido, con un nudo y el muñón de una ramita. Silueta oscura con un
+     * hilo de luz dentro, para que brille también sobre la niebla clara.
+     * `lit = false` dibuja la versión apagada (solo la silueta).
+     */
+    const CANE = { ox: 12, oy: 98, w: 26, h: 100 };
+    const STICK_PTS = [[12, 97], [11, 80], [13, 63], [11.5, 46], [12.5, 29], [10.5, 12], [11.5, 4]];
+    function stickPath(g) {
+        g.beginPath(); g.moveTo(STICK_PTS[0][0], STICK_PTS[0][1]);
+        for (let i = 1; i < STICK_PTS.length - 1; i++) {
+            const [x, y] = STICK_PTS[i], [nx, ny] = STICK_PTS[i + 1];
+            g.quadraticCurveTo(x, y, (x + nx) / 2, (y + ny) / 2);
+        }
+        const last = STICK_PTS[STICK_PTS.length - 1]; g.lineTo(last[0], last[1]);
+        g.moveTo(12, 30); g.quadraticCurveTo(16, 26, 20, 19);                 // ramita cortada
+    }
+    function cane(lit = true) {
         const S = 2, [c, g] = canvas(CANE.w * S, CANE.h * S);
-        g.scale(S, S);
-        g.lineCap = 'round'; g.strokeStyle = gray(228); g.lineWidth = 3.2;
-        g.beginPath(); g.moveTo(10, 97); g.lineTo(11, 14);
-        g.arc(16, 14, 5, Math.PI, Math.PI * 2); g.lineTo(21, 19); g.stroke();
-        g.strokeStyle = gray(150); g.lineWidth = 3.4;
-        g.beginPath(); g.moveTo(10, 97); g.lineTo(10, 92); g.stroke();
+        g.scale(S, S); g.lineCap = 'round'; g.lineJoin = 'round';
+        g.strokeStyle = '#050505'; g.lineWidth = 4.6; stickPath(g); g.stroke();
+        g.fillStyle = '#050505'; g.beginPath(); g.ellipse(12.5, 55, 3.4, 2.4, 0, 0, Math.PI * 2); g.fill();   // nudo
+        if (lit) {
+            g.strokeStyle = gray(236); g.lineWidth = 1.7; stickPath(g); g.stroke();
+            g.fillStyle = gray(236); g.beginPath(); g.arc(12.5, 55, 1.2, 0, Math.PI * 2); g.fill();
+        }
+        return c;
+    }
+
+    /* ---------- zarza con moras (los recuerdos) ---------- */
+    function bramble(w, h, seed, berries = 14) {
+        const r = rng(seed), [c, g] = canvas(w, h);
+        g.strokeStyle = '#040404'; g.fillStyle = '#040404'; g.lineCap = 'round';
+        // tallos arqueados con espinas
+        for (let i = 0; i < 9; i++) {
+            const x0 = w * (0.2 + r() * 0.6), dir = r() < 0.5 ? -1 : 1;
+            const x1 = x0 + dir * w * (0.2 + r() * 0.3), top = h * (0.05 + r() * 0.35);
+            g.lineWidth = 2 + r() * 1.5;
+            g.beginPath(); g.moveTo(x0, h); g.quadraticCurveTo((x0 + x1) / 2, top - h * 0.2, x1, top + h * 0.35); g.stroke();
+            for (let k = 0; k < 6; k++) {
+                const t = 0.2 + k * 0.13, it = 1 - t;
+                const px = it * it * x0 + 2 * it * t * (x0 + x1) / 2 + t * t * x1;
+                const py = it * it * h + 2 * it * t * (top - h * 0.2) + t * t * (top + h * 0.35);
+                g.beginPath(); g.moveTo(px - 2, py); g.lineTo(px + dir * 3, py - 5); g.lineTo(px + 2, py); g.fill();
+                if (r() < 0.6) { g.beginPath(); g.ellipse(px + dir * 6, py - 3, 5, 2.6, dir * 0.6, 0, Math.PI * 2); g.fill(); }
+            }
+        }
+        // mata densa en la base
+        g.beginPath(); g.ellipse(w / 2, h, w * 0.42, h * 0.32, 0, Math.PI, 0); g.fill();
+        // moras: racimos de bolitas con un brillo
+        for (let i = 0; i < berries; i++) {
+            const bx = w * (0.15 + r() * 0.7), by = h * (0.25 + r() * 0.5);
+            for (let k = 0; k < 5; k++) {
+                const ox = (k % 3 - 1) * 2.6, oy = (k / 3 | 0) * 2.6 - 1.3;
+                g.fillStyle = '#0e0e0e'; g.beginPath(); g.arc(bx + ox, by + oy, 2.3, 0, Math.PI * 2); g.fill();
+            }
+            g.fillStyle = gray(200, 0.9); g.beginPath(); g.arc(bx - 1, by - 1.5, 0.9, 0, Math.PI * 2); g.fill();
+        }
         return c;
     }
 
     window.ART = {
         rng, sky, forestLayer, fog, lightRay, glow, grain, foreground, vignette, crate, trap, mace, boulder, dot, shard, levelChunks,
-        ROOM, BED, CANE, roomBg, roomBed, cane
+        ROOM, BED, CANE, roomBg, roomBed, cane, bramble
     };
 })();
