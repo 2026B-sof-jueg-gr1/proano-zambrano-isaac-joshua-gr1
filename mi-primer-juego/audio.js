@@ -12,6 +12,22 @@
         muted: false,
         loops: {},
 
+        /* Tres canales con su propio volumen (0..1), guardados en el navegador.
+         * La música va siempre por delante: el ambiente y los efectos están más bajos por defecto. */
+        vol: (() => {
+            const def = { music: 1, amb: 0.45, sfx: 0.7 };
+            try { return Object.assign(def, JSON.parse(localStorage.getItem('umbral-volumen') || '{}')); }
+            catch (e) { return def; }
+        })(),
+        buses: {},
+        setVolume(kind, v) {
+            this.vol[kind] = Math.max(0, Math.min(1, v));
+            try { localStorage.setItem('umbral-volumen', JSON.stringify(this.vol)); } catch (e) {}
+            const b = this.buses[kind];
+            if (b && this.ctx) b.gain.setTargetAtTime(this.vol[kind], this.ctx.currentTime, 0.05);
+            if (kind === 'music' && this.music && !this.music.g) this.music.el.volume = Math.min(1, this.music.vol * this.vol.music);
+        },
+
         /** Debe llamarse tras un gesto del usuario (tecla / toque). */
         init() {
             if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
@@ -24,6 +40,10 @@
             this.master = ctx.createGain();
             this.master.gain.value = 0.9;
             this.master.connect(comp).connect(ctx.destination);
+            ['music', 'amb', 'sfx'].forEach(k => {
+                const g = this.buses[k] = ctx.createGain();
+                g.gain.value = this.vol[k]; g.connect(this.master);
+            });
 
             // Bus con "reverb" barata (delays realimentados) para dar espacio de bosque
             this.wet = ctx.createGain(); this.wet.gain.value = 0.28;
@@ -32,7 +52,7 @@
             const fb = ctx.createGain(); fb.gain.value = 0.42;
             const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800;
             this.wet.connect(d1); d1.connect(d2); d2.connect(lp); lp.connect(fb); fb.connect(d1);
-            lp.connect(this.master);
+            lp.connect(this.buses.sfx);
 
             this.noiseBuf = this._makeNoise(2, 'white');
             this.brownBuf = this._makeNoise(4, 'brown');
@@ -51,13 +71,13 @@
             return buf;
         },
 
-        _out(gainNode, wet = 0) {
-            gainNode.connect(this.master);
+        _out(gainNode, wet = 0, bus = 'sfx') {
+            gainNode.connect(this.buses[bus]);
             if (wet > 0) { const w = this.ctx.createGain(); w.gain.value = wet; gainNode.connect(w); w.connect(this.wet); }
         },
 
         /** Ráfaga de ruido filtrado: base de pasos, golpes, salpicaduras... */
-        _noise({ dur = 0.1, type = 'bandpass', freq = 1000, q = 1, gain = 0.3, attack = 0.002, sweepTo = null, wet = 0.2, brown = false, when = 0 }) {
+        _noise({ dur = 0.1, type = 'bandpass', freq = 1000, q = 1, gain = 0.3, attack = 0.002, sweepTo = null, wet = 0.2, brown = false, when = 0, bus = 'sfx' }) {
             if (!this.ctx || this.muted) return;
             const ctx = this.ctx, t = ctx.currentTime + when;
             const src = ctx.createBufferSource();
@@ -69,11 +89,11 @@
             g.gain.setValueAtTime(0.0001, t);
             g.gain.exponentialRampToValueAtTime(gain, t + attack);
             g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-            src.connect(f).connect(g); this._out(g, wet);
+            src.connect(f).connect(g); this._out(g, wet, bus);
             src.start(t, Math.random() * 1.5); src.stop(t + dur + 0.05);
         },
 
-        _tone({ freq = 220, to = null, dur = 0.3, type = 'sine', gain = 0.2, attack = 0.005, wet = 0.3, when = 0, detune = 0 }) {
+        _tone({ freq = 220, to = null, dur = 0.3, type = 'sine', gain = 0.2, attack = 0.005, wet = 0.3, when = 0, detune = 0, bus = 'sfx' }) {
             if (!this.ctx || this.muted) return;
             const ctx = this.ctx, t = ctx.currentTime + when;
             const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(freq, t); o.detune.value = detune;
@@ -82,7 +102,7 @@
             g.gain.setValueAtTime(0.0001, t);
             g.gain.exponentialRampToValueAtTime(gain, t + attack);
             g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-            o.connect(g); this._out(g, wet);
+            o.connect(g); this._out(g, wet, bus);
             o.start(t); o.stop(t + dur + 0.05);
         },
 
@@ -97,7 +117,7 @@
             lfo.connect(lfoG).connect(wf.frequency);
             const wg = ctx.createGain(); wg.gain.value = 0;
             wg.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 4);
-            wind.connect(wf).connect(wg).connect(this.master);
+            wind.connect(wf).connect(wg).connect(this.buses.amb);
             wind.start(); lfo.start();
 
             // Dron
@@ -109,7 +129,7 @@
                 o.frequency.value = f; o.detune.value = (Math.random() - 0.5) * 12;
                 o.connect(dl); o.start();
             });
-            dl.connect(dg); this._out(dg, 0.5);
+            dl.connect(dg); this._out(dg, 0.5, 'amb');
             this.ambGain = wg; this.droneGain = dg;
 
             // Crujidos / pájaros lejanos al azar
@@ -126,12 +146,12 @@
         creak() { this._creak(); },
         _creak() {
             const f = 70 + Math.random() * 60;
-            this._tone({ freq: f, to: f * 1.6, dur: 1.4, type: 'sawtooth', gain: 0.012, attack: 0.4, wet: 0.9 });
+            this._tone({ freq: f, to: f * 1.6, dur: 1.4, type: 'sawtooth', gain: 0.012, attack: 0.4, wet: 0.9, bus: 'amb' });
         },
         _distantBird() {
             const base = 1400 + Math.random() * 600;
             for (let i = 0; i < 2 + (Math.random() * 2 | 0); i++)
-                this._tone({ freq: base, to: base * 0.7, dur: 0.18, type: 'sine', gain: 0.01, when: i * 0.32, wet: 1 });
+                this._tone({ freq: base, to: base * 0.7, dur: 0.18, type: 'sine', gain: 0.01, when: i * 0.32, wet: 1, bus: 'amb' });
         },
 
         /* --------------------------- efectos ---------------------------- */
@@ -248,7 +268,7 @@
                 const src = this.ctx.createMediaElementSource(el);
                 m.lp = this.ctx.createBiquadFilter(); m.lp.type = 'lowpass'; m.lp.frequency.value = 20000; m.lp.Q.value = 0.5;
                 m.g = this.ctx.createGain(); m.g.gain.value = 0;
-                src.connect(m.lp).connect(m.g).connect(this.master);
+                src.connect(m.lp).connect(m.g).connect(this.buses.music);
             } else el.volume = 0;
             return m;
         },
@@ -262,9 +282,9 @@
                 gn.linearRampToValueAtTime(v, t + Math.max(0.02, secs));
             } else {
                 clearInterval(m.timer);
-                const from = m.el.volume, steps = Math.max(1, Math.round(secs * 20)); let i = 0;
+                const to = v * this.vol.music, from = m.el.volume, steps = Math.max(1, Math.round(secs * 20)); let i = 0;
                 m.timer = setInterval(() => {
-                    i++; m.el.volume = Math.min(1, Math.max(0, from + (v - from) * i / steps));
+                    i++; m.el.volume = Math.min(1, Math.max(0, from + (to - from) * i / steps));
                     if (i >= steps) clearInterval(m.timer);
                 }, 50);
             }
@@ -292,7 +312,7 @@
             if (Math.abs(volume - m.vol) > 0.004) {
                 m.vol = volume;
                 if (m.g) { m.g.gain.cancelScheduledValues(t); m.g.gain.setTargetAtTime(volume, t, smooth); }
-                else m.el.volume = Math.min(1, Math.max(0, volume));
+                else m.el.volume = Math.min(1, Math.max(0, volume * this.vol.music));
             }
             if (m.lp && Math.abs(cutoff - (m.cut || 0)) > m.cut * 0.02) {
                 m.cut = cutoff;
@@ -309,7 +329,7 @@
 
         /** Final: vuelve el soundtrack completo. Si el MP3 no carga, suena el acorde sintetizado. */
         ending() {
-            this.playMusic({ volume: 0.85, fade: 5, restart: true });
+            this.playMusic({ volume: 0.95, fade: 5, restart: true });
             if (!this.music || this.music.failed) {
                 const chord = [220, 277.2, 329.6, 440, 554.4];
                 chord.forEach((f, i) => {

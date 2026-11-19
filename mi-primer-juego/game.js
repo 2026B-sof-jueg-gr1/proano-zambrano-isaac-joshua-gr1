@@ -107,7 +107,7 @@
             { x: 4540, y: 560, bush: 'small', text: 'A veces el bosque estaba lleno de voces.\nA veces, solo de dos pasos.' },
             { x: 5190, y: 560, text: 'Hubo un día en que corrimos\nsin saber de qué.' },
             { x: 6330, y: 560, bush: 'big', music: true, text: 'Caer también puede sonar a risa.\nY al levantarse, siempre había algo dulce.' },
-            { x: 6700, y: 560, dark: true, text: 'No todos pudieron salir de aquí.\nAlgunos se quedaron envueltos en sus propios pensamientos.' },
+            { x: 6800, y: 560, dark: true, text: 'No todos pudieron salir de aquí.\nAlgunos se quedaron envueltos en sus propios pensamientos.' },
             { x: 8560, y: 560, text: 'Los caminos se hicieron largos.\nLas visitas, cortas.' },
             { x: 8900, y: 560, text: 'Un día, el camino lo recorrió solo.' },
             { x: 9200, y: 560, text: 'Me preguntó cuándo volveríamos.\nLe dije que pronto.' }
@@ -119,11 +119,11 @@
     // Soundtrack (musica/umbral.mp3): suena siempre, pero cambia según dónde está el niño.
     //   cutoff = frecuencia del filtro: bajo = apagado, "desde otra habitación"; 20000 = claro
     const MUSIC = {
-        room:   { vol: 0.75, cutoff: 20000 },      // la habitación: la realidad
-        forest: { vol: 0.3,  cutoff: 750 },        // el bosque, ya con el palo: lejana
-        memory: { vol: 0.5,  cutoff: 2600 },       // junto a un recuerdo: se abre un poco
-        big:    { vol: 0.62, cutoff: 7000 },       // el árbol de moras
-        dread:  { vol: 0.08, cutoff: 380 }         // la araña: los pensamientos oscuros la tapan
+        room:   { vol: 0.9,  cutoff: 20000 },      // la habitación: la realidad
+        forest: { vol: 0.55, cutoff: 1100 },       // el bosque, ya con el palo: lejana, pero siempre presente
+        memory: { vol: 0.72, cutoff: 3200 },       // junto a un recuerdo: se abre un poco
+        big:    { vol: 0.85, cutoff: 8000 },       // el árbol de moras
+        dread:  { vol: 0.16, cutoff: 420 }         // la araña: los pensamientos oscuros la tapan
     };
 
     // Monólogo interno en la habitación (cada línea se puede adelantar con una tecla)
@@ -247,6 +247,7 @@
             this.createAtmosphere();
             this.createInput();
             this.createUI();
+            this.createPanel();
 
             /* ---- cámara y post-procesado (filtros de Phaser 4) ---- */
             const cam = this.cameras.main;
@@ -316,9 +317,20 @@
                 a: 'A', d: 'D', w: 'W', r: 'R', m: 'M', esc: 'ESC'
             });
             kb.on('keydown-M', () => this.toast(SFX.toggleMute() ? 'sonido apagado' : 'sonido encendido'));
-            kb.on('keydown-R', () => { if (this.state === 'play') this.kill('restart'); });
-            kb.on('keydown', () => this.anyInput());
-            this.input.on('pointerdown', () => this.anyInput());
+            kb.on('keydown-R', () => { if (this.state === 'play' && !this.panelOpen) this.kill('restart'); });
+            kb.on('keydown', e => { if (this.panelOpen || e.code === 'KeyV' || e.code === 'Escape') return; this.anyInput(); });
+            // un toque sobre un botón de la interfaz (p. ej. el icono de volumen) no cuenta como "empezar"
+            this.input.on('pointerdown', (p, over) => { if (this.panelOpen || (over && over.length)) return; this.anyInput(); });
+            kb.on('keydown-V', () => this.togglePanel());
+            kb.on('keydown-ESC', () => { if (this.panelOpen) this.togglePanel(); });
+            kb.on('keydown-UP', () => this.panelKey(0, -1));
+            kb.on('keydown-W', () => this.panelKey(0, -1));
+            kb.on('keydown-DOWN', () => this.panelKey(0, 1));
+            kb.on('keydown-S', () => this.panelKey(0, 1));
+            kb.on('keydown-LEFT', () => this.panelKey(-1, 0));
+            kb.on('keydown-A', () => this.panelKey(-1, 0));
+            kb.on('keydown-RIGHT', () => this.panelKey(1, 0));
+            kb.on('keydown-D', () => this.panelKey(1, 0));
             this.input.addPointer(2);
 
             // controles táctiles
@@ -359,7 +371,7 @@
             this.subtitle = this.add.text(VIEW_W / 2, VIEW_H * 0.3 + 92, this.isTouch ? 'toca para empezar' : 'pulsa cualquier tecla', {
                 fontFamily: serif, fontSize: '26px', fontStyle: 'italic', color: '#b8b8b8'
             }).setOrigin(0.5).setScrollFactor(0).setDepth(30).setAlpha(0);
-            this.credits = this.add.text(VIEW_W - 28, VIEW_H - 24, 'M  silencio     R  reintentar', {
+            this.credits = this.add.text(VIEW_W - 28, VIEW_H - 24, 'M  silencio     V  volumen     R  reintentar', {
                 fontFamily: serif, fontSize: '18px', color: '#8a8a8a'
             }).setOrigin(1, 1).setScrollFactor(0).setDepth(30).setAlpha(0);
             this.toastText = this.add.text(28, VIEW_H - 24, '', {
@@ -654,7 +666,13 @@
                 if (this.state === 'play' && this.onGround && Math.abs(px - St.x) < 26) this.pickStick();
             }
 
-            // recuerdos
+            // recuerdos: solo se muestra uno a la vez (el más cercano), para que los textos nunca se monten
+            let active = null, activeD = 270;
+            this.memories.forEach(m => {
+                const d = Math.abs(px - m.x);
+                if (m.seen && d < activeD) { active = m; activeD = d; }
+            });
+            const othersVisible = this.memories.some(m => m !== active && m.txt.alpha > 0.12);
             this.memories.forEach(m => {
                 const d = Math.abs(px - m.x);
                 if (!m.seen && alive && this.hasStick && d < 150) {
@@ -665,8 +683,8 @@
                     }
                     if (m.dark) SFX.creak(); else if (!m.stick) SFX.checkpoint();
                 }
-                const target = m.seen && d < 270 && this.state !== 'credits' ? 0.85 : 0;
-                m.txt.setAlpha(lerp(m.txt.alpha, target, 0.03));
+                const show = m === active && !othersVisible && this.state !== 'credits';
+                m.txt.setAlpha(lerp(m.txt.alpha, show ? 0.85 : 0, show ? 0.03 : 0.08));
                 m.halo.setAlpha(m.txt.alpha * 0.6);
             });
         }
@@ -1692,10 +1710,96 @@
         }
 
         /* =================================================================
+         * PANEL DE VOLUMEN  (tecla V o el icono ♪)
+         *   Tres canales: música, ambiente (viento, dron, crujidos) y efectos.
+         *   Los niveles se guardan en el navegador. Los cambios de la música
+         *   según la zona se mantienen: el panel solo cambia su volumen general.
+         * ================================================================= */
+        createPanel() {
+            const serif = '"Cormorant Garamond", Georgia, serif';
+            const cx = VIEW_W / 2, cy = VIEW_H / 2, W = 520, H = 310;
+            const fix = o => o.setScrollFactor(0).setDepth(60);
+            this.panelOpen = false;
+            this.panelSel = 0;
+
+            this.volIcon = fix(this.add.text(VIEW_W - 34, 30, '♪', { fontFamily: serif, fontSize: '34px', color: '#d0d0d0' }))
+                .setOrigin(0.5).setAlpha(0.45).setDepth(55).setInteractive({ useHandCursor: true });
+            this.volIcon.on('pointerdown', () => this.togglePanel());
+
+            const items = [];
+            const bg = fix(this.add.rectangle(cx, cy, W, H, 0x000000, 0.85).setStrokeStyle(1, 0xffffff, 0.18));
+            bg.setInteractive();                                   // los toques dentro del panel no lo cierran
+            const shade = fix(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000, 0.35).setOrigin(0)).setDepth(59).setInteractive();
+            shade.on('pointerdown', () => this.togglePanel());     // tocar fuera lo cierra
+            items.push(shade, bg);
+            items.push(fix(this.add.text(cx, cy - H / 2 + 42, 'Volumen', { fontFamily: serif, fontStyle: 'italic', fontSize: '36px', color: '#e0e0e0' }).setOrigin(0.5)));
+
+            const rows = [['music', 'Música'], ['amb', 'Ambiente'], ['sfx', 'Efectos']];
+            const barX = cx - 40, barW = 230;
+            this.panelRows = rows.map(([key, label], i) => {
+                const y = cy - 40 + i * 62;
+                const lab = fix(this.add.text(cx - 200, y, label, { fontFamily: serif, fontSize: '26px', color: '#e0e0e0' }).setOrigin(0, 0.5));
+                const track = fix(this.add.rectangle(barX, y, barW, 4, 0xffffff, 0.2).setOrigin(0, 0.5));
+                const fill = fix(this.add.rectangle(barX, y, barW, 4, 0xe0e0e0, 0.9).setOrigin(0, 0.5));
+                const knob = fix(this.add.circle(barX, y, 9, 0xe6e6e6));
+                const val = fix(this.add.text(barX + barW + 22, y, '', { fontFamily: serif, fontSize: '22px', color: '#bdbdbd' }).setOrigin(0, 0.5));
+                const hit = fix(this.add.zone(barX + barW / 2, y, barW + 40, 40).setInteractive({ useHandCursor: true }));
+                const setFromX = x => { this.panelSel = i; SFX.setVolume(key, clamp((x - barX) / barW, 0, 1)); this.refreshPanel(); };
+                hit.on('pointerdown', p => { this.panelDrag = setFromX; setFromX(p.x); });
+                items.push(lab, track, fill, knob, val, hit);
+                return { key, lab, fill, knob, val, barX, barW };
+            });
+            this.input.on('pointermove', p => { if (this.panelDrag && p.isDown) this.panelDrag(p.x); });
+            this.input.on('pointerup', () => { this.panelDrag = null; });
+
+            items.push(fix(this.add.text(cx, cy + H / 2 - 34, this.isTouch ? 'toca fuera para cerrar' : '↑ ↓ elegir     ← → ajustar     V cerrar', {
+                fontFamily: serif, fontStyle: 'italic', fontSize: '19px', color: '#9a9a9a'
+            }).setOrigin(0.5)));
+            this.panelItems = items;
+            items.forEach(o => o.setVisible(false));
+            this.refreshPanel();
+        }
+
+        refreshPanel() {
+            this.panelRows.forEach((r, i) => {
+                const v = SFX.vol[r.key];
+                r.fill.width = Math.max(0.001, r.barW * v);
+                r.knob.x = r.barX + r.barW * v;
+                r.val.setText(Math.round(v * 100) + '%');
+                r.lab.setAlpha(i === this.panelSel ? 1 : 0.55);
+                r.knob.setScale(i === this.panelSel ? 1.15 : 0.85);
+            });
+        }
+
+        togglePanel() {
+            SFX.init();
+            this.panelOpen = !this.panelOpen;
+            this.panelDrag = null;
+            this.panelItems.forEach(o => o.setVisible(this.panelOpen));
+            if (this.panelOpen) {
+                this.physics.pause(); this.tweens.pauseAll(); this.time.paused = true;
+                this.refreshPanel();
+            } else {
+                this.physics.resume(); this.tweens.resumeAll(); this.time.paused = false;
+            }
+        }
+
+        panelKey(dx, dy) {
+            if (!this.panelOpen) return;
+            if (dy) this.panelSel = (this.panelSel + dy + 3) % 3;
+            if (dx) { const r = this.panelRows[this.panelSel]; SFX.setVolume(r.key, Math.round((SFX.vol[r.key] + dx * 0.1) * 10) / 10); }
+            this.refreshPanel();
+        }
+
+        /* =================================================================
          * BUCLE PRINCIPAL
          * ================================================================= */
         update(time, delta) {
             const dt = Math.min(delta / 1000, 1 / 30);
+            if (this.panelOpen) {                                   // juego en pausa mientras se ajusta el volumen
+                this.grain.tilePositionX = Math.random() * 256;
+                return;
+            }
             this.t += dt;
             const cam = this.cameras.main;
 

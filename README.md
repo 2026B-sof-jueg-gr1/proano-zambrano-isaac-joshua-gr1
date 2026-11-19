@@ -25,6 +25,8 @@ El estilo visual está inspirado en los plataformeros de silueta en blanco y neg
 | Empujar la caja | camina contra ella | — |
 | Reintentar desde el último punto de control | R | — |
 | Silenciar | M | — |
+| Volumen (música, ambiente, efectos) | V | icono ♪ |
+| Adelantar los pensamientos del inicio | cualquier tecla | toque |
 
 ## Aspectos técnicos
 

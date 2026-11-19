@@ -103,6 +103,8 @@ La pista **suena todo el tiempo y en bucle**, pero cambia de "lugar" según dón
 | Al morir | Amortiguada |
 | Final (la luz) y créditos | Vuelve completa desde el principio, en bucle |
 
+El sonido va por **tres canales** (música, ambiente y efectos) con un panel de volumen (tecla **V** o el icono ♪). Por defecto la música va por delante: ambiente al 45 % y efectos al 70 %. Los niveles se guardan en el navegador, y los cambios de la música según la zona se mantienen siempre.
+
 `audio.js` expone `SFX.playMusic({ volume, fade, muffled, restart })`, `SFX.setMusic(volume, cutoff)` (para llamarlo cada fotograma) y `SFX.stopMusic(fade)`.
 
 ## 5. Cuidado con el tema
