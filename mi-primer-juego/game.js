@@ -80,7 +80,14 @@
             { x1: 7120, x2: 7420, y: 120, r: 120 }, { x1: 6780, x2: 7120, y: 300, r: 90 },
             { x1: 8180, x2: 8520, y: 160, r: 130 }, { x1: 8520, x2: 8900, y: 330, r: 80 }
         ],
-        cocoons: [{ x: 7020, len: 190 }, { x: 7600, len: 120 }, { x: 8330, len: 230 }, { x: 8700, len: 150 }],
+        // capullos: los que no pudieron salir de sus pensamientos (s = tamaño)
+        cocoons: [
+            { x: 6640, len: 260, s: 0.8 }, { x: 6760, len: 140 }, { x: 6905, len: 320, s: 1.1 }, { x: 7020, len: 190 },
+            { x: 7160, len: 90, s: 0.7 }, { x: 7270, len: 240 }, { x: 7365, len: 330, s: 0.9 }, { x: 7470, len: 160, s: 1.15 },
+            { x: 7600, len: 120 }, { x: 7690, len: 290, s: 0.75 }, { x: 7810, len: 200, s: 1.05 }, { x: 7905, len: 100, s: 0.8 },
+            { x: 8010, len: 270 }, { x: 8150, len: 170, s: 0.9 }, { x: 8330, len: 230 }, { x: 8440, len: 110, s: 0.7 },
+            { x: 8700, len: 150 }, { x: 8790, len: 300, s: 0.85 }
+        ],
         vines: [
             { x: 760, len: 170 }, { x: 812, len: 120 }, { x: 2700, len: 230 }, { x: 3580, len: 140 },
             { x: 4300, len: 120 }, { x: 5000, len: 200 }, { x: 5940, len: 160 }
@@ -100,6 +107,7 @@
             { x: 4540, y: 560, bush: 'small', text: 'A veces el bosque estaba lleno de voces.\nA veces, solo de dos pasos.' },
             { x: 5190, y: 560, text: 'Hubo un día en que corrimos\nsin saber de qué.' },
             { x: 6330, y: 560, bush: 'big', music: true, text: 'Caer también puede sonar a risa.\nY al levantarse, siempre había algo dulce.' },
+            { x: 6700, y: 560, dark: true, text: 'No todos pudieron salir de aquí.\nAlgunos se quedaron envueltos en sus propios pensamientos.' },
             { x: 8560, y: 560, text: 'Los caminos se hicieron largos.\nLas visitas, cortas.' },
             { x: 8900, y: 560, text: 'Un día, el camino lo recorrió solo.' },
             { x: 9200, y: 560, text: 'Me preguntó cuándo volveríamos.\nLe dije que pronto.' }
@@ -108,8 +116,24 @@
         epitaph: 'Lo que queda de alguien\na veces cabe en una mano.'
     };
 
-    // Soundtrack (musica/umbral.mp3): volumen al empezar y tramo en el que se apaga al hundirse
-    const MUSIC = { introVol: 0.75, fadeFrom: 700, fadeTo: 1700 };
+    // Soundtrack (musica/umbral.mp3): suena siempre, pero cambia según dónde está el niño.
+    //   cutoff = frecuencia del filtro: bajo = apagado, "desde otra habitación"; 20000 = claro
+    const MUSIC = {
+        room:   { vol: 0.75, cutoff: 20000 },      // la habitación: la realidad
+        forest: { vol: 0.3,  cutoff: 750 },        // el bosque, ya con el palo: lejana
+        memory: { vol: 0.5,  cutoff: 2600 },       // junto a un recuerdo: se abre un poco
+        big:    { vol: 0.62, cutoff: 7000 },       // el árbol de moras
+        dread:  { vol: 0.08, cutoff: 380 }         // la araña: los pensamientos oscuros la tapan
+    };
+
+    // Monólogo interno en la habitación (cada línea se puede adelantar con una tecla)
+    const MONOLOGUE = [
+        'Otra noche más mirando el mismo techo.',
+        'Todo sigue en su sitio. Yo no.',
+        '¿Debería redecorar mi habitación?',
+        '…o quizá el problema no es la habitación.'
+    ];
+    const MONO_SINK = 'Hace mucho que no salgo a caminar.';
 
     // Habitación: zoom inicial y las dos poses del niño (coordenadas locales, cama en y = 0)
     const ROOM_ZOOM = 1.8;
@@ -361,9 +385,10 @@
             SFX.init();
             if (this.state === 'title' && this.t > 0.6) {
                 // el soundtrack es "la realidad": suena en la habitación y se apaga al adentrarse en el bosque
-                SFX.playMusic({ volume: MUSIC.introVol, fade: 1.5, restart: true });
-                this.introMusic = true;
+                SFX.playMusic({ volume: MUSIC.room.vol, fade: 1.5, restart: true });
                 this.startRoomIntro();
+            } else if (this.state === 'intro' && this.monoIdx < MONOLOGUE.length && this.t - this.monoShownAt > 0.7) {
+                this.nextMono();                                    // adelantar el monólogo
             } else if (this.state === 'credits' && this.creditsReady) {
                 this.state = 'leaving';
                 SFX.stopMusic(1.2);
@@ -418,18 +443,66 @@
 
         startRoomIntro() {
             this.state = 'intro';
-            const P = this.roomParts, room = this.room, tw = (cfg) => this.tweens.add(cfg);
             this.tweens.killTweensOf([this.title, this.subtitle, this.credits]);
-            tw({ targets: [this.title, this.subtitle, this.credits], alpha: 0, duration: 1400 });
+            this.tweens.add({ targets: [this.title, this.subtitle, this.credits], alpha: 0, duration: 1400 });
 
-            // el reloj: cada vez más lento hasta que se apaga
-            [0.3, 1.3, 2.35, 3.5, 4.8, 6.4].forEach((s, i) => this.time.delayedCall(s * 1000, () => SFX.clock(i % 2 === 1)));
+            // el reloj marca el tiempo mientras piensa
+            this.clockN = 0;
+            this.clockEv = this.time.addEvent({ delay: 1000, loop: true, callback: () => SFX.clock(this.clockN++ % 2 === 1) });
 
-            // se tumba en la cama
-            tw({ targets: this, roomPose: 1, duration: 1900, delay: 700, ease: 'Sine.easeInOut' });
+            this.monoText = this.add.text(VIEW_W / 2, VIEW_H * 0.27, '', {
+                fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', fontSize: '32px', color: '#d2d2d2', align: 'center'
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(30).setAlpha(0);
+            this.monoIdx = -1;
+            this.time.delayedCall(1300, () => this.nextMono());
+        }
+
+        /** Muestra la siguiente línea del monólogo; al terminar, el niño se tumba y se hunde. */
+        nextMono() {
+            if (this.monoTimer) this.monoTimer.remove();
+            this.monoIdx++;
+            const t = this.monoText;
+            this.tweens.killTweensOf(t);
+            if (this.monoIdx >= MONOLOGUE.length) {
+                this.tweens.add({ targets: t, alpha: 0, duration: 600 });
+                this.startSink();
+                return;
+            }
+            const show = () => {
+                t.setText(MONOLOGUE[this.monoIdx]);
+                this.monoShownAt = this.t;
+                this.tweens.add({ targets: t, alpha: 0.9, duration: 900 });
+            };
+            if (t.alpha > 0.05) this.tweens.add({ targets: t, alpha: 0, duration: 450, onComplete: show });
+            else show();
+            const len = MONOLOGUE[this.monoIdx].length;
+            this.monoTimer = this.time.delayedCall(2600 + len * 45, () => this.nextMono());
+        }
+
+        startSink() {
+            const P = this.roomParts, room = this.room, tw = (cfg) => this.tweens.add(cfg);
+            this.monoIdx = MONOLOGUE.length;
+
+            // el reloj se va quedando sin cuerda
+            if (this.clockEv) this.clockEv.remove();
+            [0.4, 1.5, 2.8, 4.4].forEach((s, i) => this.time.delayedCall(s * 1000, () => SFX.clock(i % 2 === 1)));
+
+            // se tumba en la cama, y piensa una última cosa
+            tw({ targets: this, roomPose: 1, duration: 1900, delay: 300, ease: 'Sine.easeInOut' });
+            this.time.delayedCall(900, () => {
+                const t = this.monoText;
+                t.setText(MONO_SINK);
+                tw({ targets: t, alpha: 0.75, duration: 1200, onComplete: () => tw({ targets: t, alpha: 0, duration: 1600, delay: 1500 }) });
+            });
+
+            // mientras se tumba, la luz del palo empieza a fallar… y se apaga. Se queda en la habitación.
+            this.time.delayedCall(1300, () => {
+                this.caneDying = true;
+                tw({ targets: this, roomCaneGlow: 0, duration: 2600, ease: 'Cubic.easeIn' });
+            });
 
             // se hunde
-            this.time.delayedCall(2900, () => {
+            this.time.delayedCall(3200, () => {
                 const cam = this.cameras.main, b = this.player.body;
                 // posición en pantalla del niño tumbado en el bosque, para que la habitación "caiga" justo ahí
                 const tx = b.center.x - cam.scrollX - 33, ty = b.bottom - cam.scrollY - 10;
@@ -440,14 +513,10 @@
                 tw({ targets: P.fog, alpha: 0.65, y: -40, duration: 4200, ease: 'Sine.easeOut' });
                 tw({ targets: P.winGlow, alpha: 0.03, duration: 3000 });
             });
-            // mientras se tumba, la luz del palo empieza a fallar… y se apaga. Se queda en la habitación.
-            this.time.delayedCall(1700, () => {
-                this.caneDying = true;
-                tw({ targets: this, roomCaneGlow: 0, duration: 2600, ease: 'Cubic.easeIn' });
-            });
-            this.time.delayedCall(5200, () => {
+            this.time.delayedCall(5500, () => {
                 tw({ targets: room, alpha: 0, duration: 2600, ease: 'Sine.easeIn', onComplete: () => {
                     room.destroy(); this.room = null; this.roomActive = false;
+                    if (this.monoText) { this.monoText.destroy(); this.monoText = null; }
                     this.beginPlay(false);
                 } });
             });
@@ -536,17 +605,42 @@
                 o.halo = this.add.image(m.x, m.y - 190, 'glow').setScale(o.txt.width / 70, 1.5).setDepth(13.5).setAlpha(0);
                 return o;
             });
-            this.memMusicToken = 0;
+            this.musicSwell = 0;
         }
 
-        /** El soundtrack suena apagado, "desde otra habitación", unos segundos. */
-        memoryMusic(secs = 10) {
-            this.introMusic = false;
-            SFX.playMusic({ volume: 0.45, fade: 1.5, muffled: true });
-            const token = ++this.memMusicToken;
-            this.time.delayedCall(secs * 1000, () => {
-                if (token === this.memMusicToken && this.state !== 'ending' && this.state !== 'credits') SFX.stopMusic(4);
+        /**
+         * La música no se apaga nunca en el bosque: cambia de "lugar".
+         * Lejana y apagada en el bosque, se abre junto a los recuerdos,
+         * casi desaparece cerca de la araña y vuelve completa en el final.
+         */
+        updateMusic(dt) {
+            if (!['waking', 'play', 'grabbed', 'cocoon', 'dead'].includes(this.state)) return;
+            if (this.state === 'dead') return;                      // al morir ya se oye "tapada" (SFX.muffle)
+            const M = MUSIC, px = this.player.body.center.x, S = LEVEL.spider;
+            const mixT = (A, B, k) => ({ vol: lerp(A.vol, B.vol, k), cutoff: A.cutoff * Math.pow(B.cutoff / A.cutoff, k) });
+
+            // antes de encontrar el palo: la habitación se va quedando lejos a medida que se adentra
+            let cur = this.hasStick ? M.forest : mixT(M.room, M.forest, clamp((px - 520) / 500, 0, 0.8));
+
+            // junto a un recuerdo ya visto, la música se abre (o se cierra, si el recuerdo es oscuro)
+            let best = null, bestK = 0;
+            this.memories.forEach(m => {
+                if (!m.seen) return;
+                const k = clamp(1 - (Math.abs(px - m.x) - 120) / 220, 0, 1);
+                if (k > bestK) { bestK = k; best = m; }
             });
+            if (best) cur = mixT(cur, best.dark ? M.dread : best.music ? M.big : M.memory, bestK * (best.dark ? 0.6 : 1));
+
+            // al recoger el palo, un momento en que suena más cerca
+            this.musicSwell = Math.max(0, this.musicSwell - dt / 9);
+            if (this.musicSwell > 0) cur = mixT(cur, M.big, this.musicSwell);
+
+            // la araña: los pensamientos más oscuros la tapan casi del todo
+            const sp = this.sp, spiderNear = sp && sp.mode !== 'gone' && px > S.huntFrom - 250 && px < S.cocoonTrigger + 300;
+            this.dread = lerp(this.dread || 0, spiderNear || this.state === 'cocoon' || this.state === 'grabbed' ? 1 : 0, Math.min(1, dt * 1.5));
+            if (this.dread > 0.01) cur = mixT(cur, M.dread, this.dread);
+
+            SFX.setMusic(cur.vol, cur.cutoff);
         }
 
         updateStory(dt) {
@@ -569,8 +663,7 @@
                         this.tweens.add({ targets: m.bushGlow, alpha: 0.45, duration: 900, yoyo: true, hold: 600,
                             onComplete: () => this.tweens.add({ targets: m.bushGlow, alpha: 0.12, duration: 1200 }) });
                     }
-                    if (!m.stick) SFX.checkpoint();
-                    if (m.music) this.memoryMusic(12);
+                    if (m.dark) SFX.creak(); else if (!m.stick) SFX.checkpoint();
                 }
                 const target = m.seen && d < 270 && this.state !== 'credits' ? 0.85 : 0;
                 m.txt.setAlpha(lerp(m.txt.alpha, target, 0.03));
@@ -587,7 +680,7 @@
             this.dustFx.explode(6, St.x, St.y);
             this.cameras.main.flash(500, 40, 40, 40);
             SFX.checkpoint();
-            this.memoryMusic(11);
+            this.musicSwell = 1;
         }
 
         /* =================================================================
@@ -1634,12 +1727,7 @@
 
             const px = this.player.body.center.x;
 
-            // la música se apaga a medida que el niño se adentra en el bosque
-            if (this.introMusic) {
-                const k = clamp((px - MUSIC.fadeFrom) / (MUSIC.fadeTo - MUSIC.fadeFrom), 0, 1);
-                if (k >= 1 && this.state === 'play') { this.introMusic = false; SFX.stopMusic(2.5); }
-                else SFX.setMusicVolume(MUSIC.introVol * (1 - k));
-            }
+            this.updateMusic(dt);
 
             // textos de ayuda: aparecen al acercarse
             this.hints.forEach((h, i) => {

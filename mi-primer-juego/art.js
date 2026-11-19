@@ -396,7 +396,8 @@
                 g.save();
                 g.strokeStyle = 'rgba(190,190,190,0.45)'; g.lineWidth = 1;
                 g.beginPath(); g.moveTo(co.x, 0); g.lineTo(co.x + 3, co.len); g.stroke();
-                g.translate(co.x + 3, co.len + 30); g.rotate((rr() - 0.5) * 0.15);
+                const sc = co.s || 1;
+                g.translate(co.x + 3, co.len + 30 * sc); g.rotate((rr() - 0.5) * 0.15); g.scale(sc, sc);
                 g.fillStyle = '#1a1a1a';
                 g.beginPath(); g.ellipse(0, 0, 13, 32, 0, 0, Math.PI * 2); g.fill();
                 g.strokeStyle = 'rgba(170,170,170,0.55)';

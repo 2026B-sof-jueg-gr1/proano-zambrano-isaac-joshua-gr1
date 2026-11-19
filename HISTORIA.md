@@ -26,15 +26,22 @@ UMBRAL nace de las caminatas por el bosque que el autor hacía de niño con su a
 | **Péndulos / mazas** | Pensamientos que van y vuelven, siempre con el mismo ritmo. |
 | **El estanque** | Ahogarse en los pensamientos. |
 | **La roca** | La ansiedad que te persigue… y que, cuando la esquivas, se convierte en puente. |
-| **La araña** | El pensamiento más oscuro: te envuelve, te aísla y quiere quedarse contigo. Los capullos son otros que se quedaron atrapados. |
+| **La araña** | El pensamiento más oscuro: te envuelve, te aísla y quiere quedarse contigo. |
+| **Los capullos** | Los que no pudieron salir de sus pensamientos. Cuelgan por todo el bosque de la araña. |
 | **La luz del final** | Despertar. Volver a la habitación. |
 
 ## 2. Estructura
 
 ### Acto 0 · La habitación (nuevo)
-- Empieza de noche. El niño está sentado en la cama. **Suena el soundtrack.**
+- Empieza de noche. El niño está sentado en la cama. **Suena el soundtrack** y un reloj marca los segundos.
+- **Monólogo interno** ✅ *implementado* (`MONOLOGUE` en `game.js`; una tecla adelanta cada línea):
+  > *Otra noche más mirando el mismo techo.*
+  > *Todo sigue en su sitio. Yo no.*
+  > *¿Debería redecorar mi habitación?* — guiño al título de la canción
+  > *…o quizá el problema no es la habitación.*
+- Se tumba y piensa una última cosa: *Hace mucho que no salgo a caminar.* El reloj se va parando.
 - En una esquina, el palo del abuelo brilla muy débilmente y parpadea. Sobre la cama hay una foto: el abuelo con su palo y el niño con su palito, de la mano.
-- El niño se tumba. Las paredes se oscurecen, la cama se hunde, el suelo se vuelve hierba, los muebles se estiran hasta ser árboles. **La música se apaga** a medida que se hunde.
+- El niño se tumba. Las paredes se oscurecen, la cama se hunde, el suelo se vuelve hierba, los muebles se estiran hasta ser árboles.
 - Despierta tumbado en el bosque (la intro actual del juego).
 - Mientras el niño se tumba, la luz del palo falla y **se apaga**. El niño no se lo lleva.
 - Lo encuentra al despertar, unos pasos más adelante, clavado en el suelo y brillando: *no lo trajo, estaba ahí esperándolo.* Al recogerlo, el soundtrack suena apagado, como desde otra habitación, y aparece el primer recuerdo. Desde entonces el niño camina apoyándose en él. ✅ *implementado*
@@ -52,6 +59,7 @@ UMBRAL nace de las caminatas por el bosque que el autor hacía de niño con su a
   | Antes del estanque (zarza) | A veces el bosque estaba lleno de voces. / A veces, solo de dos pasos. |
   | Justo antes de la roca | Hubo un día en que corrimos / sin saber de qué. |
   | Después de la roca (zarza grande, suena el soundtrack) | Caer también puede sonar a risa. / Y al levantarse, siempre había algo dulce. |
+  | Entrada al bosque de la araña (oscuro) | No todos pudieron salir de aquí. / Algunos se quedaron envueltos en sus propios pensamientos. |
   | Después de la araña | Los caminos se hicieron largos. / Las visitas, cortas. |
   | | Un día, el camino lo recorrió solo. |
   | Antes de la luz | Me preguntó cuándo volveríamos. / Le dije que pronto. |
@@ -82,17 +90,20 @@ Un tramo que vuelve sobre sí mismo (el mismo trozo de bosque, cada vez más osc
 Zarzas con moras y momentos del camino que evocan la historia real en frases cortas, sin contarla de forma literal (ver la tabla del Acto I). Los textos están en `LEVEL.memories` y se pueden reescribir libremente. Idea pendiente: contar en los créditos cuántos recuerdos encontraste.
 
 ## 4. Música (`musica/umbral.mp3`)
-Una sola pista, usada en momentos concretos y siempre **en bucle** si se termina:
+La pista **suena todo el tiempo y en bucle**, pero cambia de "lugar" según dónde está el niño: un filtro la hace sonar lejana, como desde otra habitación, o la abre. Así el bosque nunca queda vacío, y la música funciona como el hilo con la realidad. Los valores están en `MUSIC` (`game.js`).
 
 | Momento | Cómo suena |
 |---|---|
-| Habitación / pantalla de título | Completa |
-| Hundirse en el bosque | Se apaga a medida que el niño se adentra |
-| Puntos de control con el palo y recuerdos | Apagada y lejana, unos segundos |
-| Subida del umbral | De apagada a clara, según el progreso |
-| Regreso a la habitación y créditos | Completa, en bucle |
+| Habitación y monólogo | Completa y clara |
+| Primeros pasos en el bosque | Se va alejando a medida que el niño se adentra |
+| Al recoger el palo | Se acerca un momento y vuelve a alejarse |
+| Bosque, con el palo | Baja y lejana |
+| Junto a un recuerdo | Se abre un poco; en el árbol de moras, casi clara |
+| Zona de la araña y capullos | Casi desaparece: los pensamientos oscuros la tapan |
+| Al morir | Amortiguada |
+| Final (la luz) y créditos | Vuelve completa desde el principio, en bucle |
 
-`audio.js` expone `SFX.playMusic({ volume, fade, muffled, restart })`, `SFX.setMusicVolume(v)` y `SFX.stopMusic(fade)`.
+`audio.js` expone `SFX.playMusic({ volume, fade, muffled, restart })`, `SFX.setMusic(volume, cutoff)` (para llamarlo cada fotograma) y `SFX.stopMusic(fade)`.
 
 ## 5. Cuidado con el tema
 - Nunca mostrar un método ni el acto; lo oscuro se representa con el entorno.

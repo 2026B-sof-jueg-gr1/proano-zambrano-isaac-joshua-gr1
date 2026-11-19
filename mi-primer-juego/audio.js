@@ -123,6 +123,7 @@
             setTimeout(later, 6000);
         },
 
+        creak() { this._creak(); },
         _creak() {
             const f = 70 + Math.random() * 60;
             this._tone({ freq: f, to: f * 1.6, dur: 1.4, type: 'sawtooth', gain: 0.012, attack: 0.4, wet: 0.9 });
@@ -241,7 +242,7 @@
             if (this.music) return this.music;
             const el = new Audio('musica/umbral.mp3?v=1');
             el.loop = true; el.preload = 'auto';
-            const m = this.music = { el, g: null, lp: null, vol: 0, failed: false, timer: null };
+            const m = this.music = { el, g: null, lp: null, vol: 0, cut: 20000, failed: false, timer: null };
             el.addEventListener('error', () => { m.failed = true; });
             if (this.ctx && location.protocol !== 'file:') {
                 const src = this.ctx.createMediaElementSource(el);
@@ -276,12 +277,27 @@
             if (m.el.paused) m.el.play().catch(() => { m.failed = true; });
             m.el.muted = this.muted && !m.g;
             this._musicRamp(volume, fade);
-            if (m.lp) m.lp.frequency.setTargetAtTime(muffled ? 650 : 20000, this.ctx.currentTime, Math.max(0.05, fade / 3));
+            m.cut = muffled ? 650 : 20000;
+            if (m.lp) { m.lp.frequency.cancelScheduledValues(this.ctx.currentTime); m.lp.frequency.setTargetAtTime(m.cut, this.ctx.currentTime, Math.max(0.05, fade / 3)); }
         },
         /** Ajuste continuo (p. ej. según la distancia del personaje). */
         setMusicVolume(v, secs = 0.25) {
             const m = this.music; if (!m || m.el.paused) return;
             if (Math.abs(v - m.vol) > 0.005) this._musicRamp(v, secs);
+        },
+        /** Lleva la música suavemente a un volumen y un "lugar" (filtro). Se puede llamar cada fotograma. */
+        setMusic(volume, cutoff = 20000, smooth = 0.6) {
+            const m = this.music; if (!m || m.el.paused || !this.ctx) return;
+            const t = this.ctx.currentTime;
+            if (Math.abs(volume - m.vol) > 0.004) {
+                m.vol = volume;
+                if (m.g) { m.g.gain.cancelScheduledValues(t); m.g.gain.setTargetAtTime(volume, t, smooth); }
+                else m.el.volume = Math.min(1, Math.max(0, volume));
+            }
+            if (m.lp && Math.abs(cutoff - (m.cut || 0)) > m.cut * 0.02) {
+                m.cut = cutoff;
+                m.lp.frequency.cancelScheduledValues(t); m.lp.frequency.setTargetAtTime(cutoff, t, smooth);
+            }
         },
         stopMusic(fade = 2) {
             const m = this.music; if (!m || m.el.paused) return;
