@@ -134,6 +134,8 @@
             // después de romper el ciclo
             { x: 12150, y: 560, music: true, text: 'Me preguntó cuándo volveríamos.\nLe dije que pronto.' }
         ],
+        // Epílogo: la habitación de día se monta aquí, a la derecha del nivel
+        epilogue: { x: 14000 },
         // Última línea, sobre la pantalla blanca del final, antes de los créditos
         epitaph: 'Lo que queda de alguien\na veces cabe en una mano.'
     };
@@ -221,6 +223,9 @@
             add('dust', ART.dot(16, 40));
             add('shard', ART.shard());
             add('roomBg', ART.roomBg());
+            add('roomDay', ART.roomBg(true));
+            add('curtain', ART.curtainPanel());
+            add('mother', ART.mother());
             add('roomBed', ART.roomBed());
             add('cane', ART.cane(true));
             add('caneDark', ART.cane(false));
@@ -290,6 +295,7 @@
 
             /* ---- cámara y post-procesado (filtros de Phaser 4) ---- */
             const cam = this.cameras.main;
+            cam.setZoom(1);
             cam.setBounds(0, 0, L.width, L.height);
             cam.startFollow(this.player, true, 0.075, 0.075, 0, CAM_OY);
             cam.setDeadzone(80, 60);
@@ -434,6 +440,9 @@
 
         anyInput() {
             SFX.init();
+            // si se entró sin pasar por la habitación (p. ej. con ?x=), la música arranca con la primera tecla
+            if (!SFX.musicPlaying() && ['play', 'waking', 'dead', 'cocoon', 'grabbed'].includes(this.state))
+                SFX.playMusic({ volume: MUSIC.forest.vol, fade: 2, restart: true });
             if (this.state === 'title' && this.t > 0.6) {
                 // el soundtrack es "la realidad": suena en la habitación y se apaga al adentrarse en el bosque
                 SFX.playMusic({ volume: MUSIC.room.vol, fade: 1.5, restart: true });
@@ -1050,7 +1059,7 @@
                 else b.setVelocityX(0);
                 return;
             }
-            const canMove = this.state === 'play';
+            const canMove = this.state === 'play' || this.state === 'epilogue';
             const left = canMove && (k.left.isDown || k.a.isDown || tch.left);
             const right = canMove && (k.right.isDown || k.d.isDown || tch.right);
             const jumpHeld = canMove && (k.up.isDown || k.w.isDown || k.space.isDown || tch.jump);
@@ -1062,7 +1071,7 @@
             if (jumpPressed) this.lastJumpPress = this.t;
 
             let dir = (right ? 1 : 0) - (left ? 1 : 0);
-            if (this.state === 'ending') dir = this.endWalk || 0;
+            if (this.state === 'ending' || this.state === 'outro') dir = this.endWalk || 0;
             if (dir) this.facing = dir;
 
             // caja: empujar
@@ -1072,7 +1081,7 @@
             const contact = dir > 0 ? b.touching.right || b.blocked.right : b.touching.left || b.blocked.left;
             if (contact && nearBox) this.pushGrace = 0.18; else this.pushGrace = (this.pushGrace || 0) - dt;
             this.pushing = onGround && dir !== 0 && nearBox && (contact || this.pushGrace > 0);
-            const maxSpeed = this.pushing ? P.pushSpeed : (this.state === 'ending' ? 110 : P.speed);
+            const maxSpeed = this.pushing ? P.pushSpeed : (this.state === 'ending' || this.state === 'outro' ? 110 : P.speed);
 
             const target = dir * maxSpeed;
             const acc = onGround ? P.accelGround : P.accelAir;
@@ -1105,7 +1114,7 @@
             this.pushBlend = lerp(this.pushBlend || 0, this.pushing ? 1 : 0, Math.min(1, dt * 10));
 
             // salto con "coyote time" y "jump buffer"
-            if (canMove && this.t - this.lastJumpPress < P.buffer && this.t - this.lastGround < P.coyote && b.velocity.y >= -10) {
+            if (canMove && !this.noJump && this.t - this.lastJumpPress < P.buffer && this.t - this.lastGround < P.coyote && b.velocity.y >= -10) {
                 b.setVelocityY(-P.jump);
                 this.lastJumpPress = -1; this.lastGround = -1;
                 SFX.jump();
@@ -1993,7 +2002,7 @@
             }).setOrigin(0.5).setScrollFactor(0).setDepth(46.5).setAlpha(0);
             this.tweens.add({ targets: t, alpha: 0.9, duration: 2200, delay: 600 });
             this.tweens.add({ targets: t, alpha: 0, duration: 1800, delay: 6800, onComplete: () => {
-                t.destroy(); this.showCredits();
+                t.destroy(); this.startEpilogue();
             } });
         }
 
@@ -2008,8 +2017,10 @@
                 [cy + 50, 'hecho con Phaser 4  ·  2026', 20, 'normal', 4],
                 [cy + 88, 'música: «Redecorate» (Stems Shutter) — Twenty One Pilots', 18, 'italic', 1],
                 [cy + 112, 'versión hecha con los stems por Nic Stonewood', 16, 'italic', 1],
-                [cy + 155, 'para mi abuelo', 22, 'italic', 3],
-                [cy + 205, this.isTouch ? 'toca para volver a empezar' : 'pulsa cualquier tecla para volver a empezar', 18, 'italic', 1]
+                [cy + 150, 'para mi abuelo', 22, 'italic', 3],
+                [cy + 186, 'si alguna vez te sientes así, habla con alguien', 17, 'italic', 1],
+                [cy + 232, 'Stay Alive', 24, '300', 6],
+                [cy + 300, this.isTouch ? 'toca para volver a empezar' : 'pulsa cualquier tecla para volver a empezar', 16, 'italic', 1]
             ];
             const lastLine = lines.length - 1;
             const black = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000).setOrigin(0).setScrollFactor(0).setDepth(46).setAlpha(0);
@@ -2020,6 +2031,211 @@
                 this.tweens.add({ targets: t, alpha: i === lastLine ? 0.55 : 0.92, duration: 2500, delay: 4200 + i * 1100 });
             });
             this.time.delayedCall(7500, () => { this.creditsReady = true; });
+        }
+
+        /* =================================================================
+         * 6. EPÍLOGO · REDECORAR
+         *   La luz blanca del final se disuelve en la habitación, de día.
+         *   La mamá lo llama a comer. Puede abrir las cortinas (redecorar),
+         *   tomar el palo, que vuelve a brillar, y salir por la puerta, donde
+         *   ella lo espera. Hay gente que lo quiere. Luego, los créditos.
+         *   La habitación se monta en el mundo, a la derecha del nivel, para
+         *   que el niño se mueva con su física y su animación de siempre.
+         * ================================================================= */
+        startEpilogue() {
+            const E = LEVEL.epilogue, RX = E.x, OY = 560 - ART.ROOM.floor, A = ART;
+            const R = A.ROOM, B = A.BED, C = A.CANE, cam = this.cameras.main, b = this.player.body;
+            const serif = '"Cormorant Garamond", Georgia, serif';
+            this.state = 'epiWake';
+            this.epi = { curtain: false, stick: false, door: false, calls: 0, idleT: 0, saidMissing: false };
+
+            // fuera el bosque
+            [...this.layers, this.sun, this.fg, this.fogFront, this.darkImg, ...this.rays, ...this.motes]
+                .forEach(o => o && o.setVisible(false));
+
+            // la habitación por la mañana
+            const add = (o, d) => o.setDepth(d);
+            add(this.add.image(RX, 560, 'roomDay').setScale(0.5).setOrigin(R.ox / R.w, (R.oy + R.floor) / R.h), 10);
+            this.epiSun = add(this.add.image(RX - 200, OY - 160, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(2).setAlpha(0.18), 10.2);
+            add(this.add.image(RX, OY, 'roomBed').setScale(0.5).setOrigin(B.ox / B.w, B.oy / B.h), 10.5);
+            this.epiCane = add(this.add.image(RX + 178, 560, 'cane').setScale(0.5).setOrigin(C.ox / C.w, C.oy / C.h).setRotation(-0.12), 10.6);
+            this.epiCaneGlow = add(this.add.image(RX + 173, OY - 18, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0.35), 10.7);
+            const CU = A.CURTAIN;
+            this.epiCurtains = [
+                add(this.add.image(RX - 230, OY - 244, 'curtain').setScale(0.5).setOrigin(0.5, 0), 10.6),
+                add(this.add.image(RX - 170, OY - 244, 'curtain').setScale(0.5).setOrigin(0.5, 0).setFlipX(true), 10.6)
+            ];
+            this.epiDim = add(this.add.rectangle(RX - 470, OY - 380, 1060, 600, 0x000000).setOrigin(0).setAlpha(0.32), 11.8);
+            this.epiBeam = add(this.add.image(RX - 205, OY - 236, 'ray').setOrigin(0.5, 0).setScale(0.32, 0.36).setAngle(-30)
+                .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0), 11.9);
+            // la puerta: detrás, la luz del pasillo y la mamá
+            this.epiHall = add(this.add.rectangle(RX + 298, OY - 174, 76, 202, 0xf2f2f2).setOrigin(0).setAlpha(0), 10.8);
+            this.epiMom = add(this.add.image(RX + 345, 562, 'mother').setScale(0.5).setOrigin(0.5, 1).setAlpha(0), 10.9);
+            this.epiDoor = add(this.add.rectangle(RX + 298, OY - 174, 76, 202, 0x070707).setOrigin(0), 10.95);
+            this.epiUnderDoor = add(this.add.image(RX + 336, 560, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(0.9, 0.12).setAlpha(0.2), 11);
+
+            // textos: lo que piensa (cursiva) y la voz de su mamá (desde la puerta)
+            this.epiText = add(this.add.text(RX + 30, OY - 205, '', {
+                fontFamily: serif, fontStyle: 'italic', fontSize: '19px', color: '#141414', align: 'center', lineSpacing: 4
+            }).setOrigin(0.5).setAlpha(0), 13);
+            this.epiVoice = add(this.add.text(RX + 300, OY - 215, '', {
+                fontFamily: serif, fontSize: '19px', color: '#0e0e0e', align: 'center'
+            }).setOrigin(0.5).setAlpha(0), 13);
+            this.epiPrompt = add(this.add.text(0, 0, '', {
+                fontFamily: serif, fontStyle: 'italic', fontSize: '14px', color: '#1c1c1c'
+            }).setOrigin(0.5).setAlpha(0), 13);
+
+            // física de la habitación: suelo, paredes y la cama
+            const solid = (x, y, w, h) => {
+                const z = this.add.zone(x + w / 2, y + h / 2, w, h); this.physics.add.existing(z, true);
+                this.physics.add.collider(this.player, z); return z;
+            };
+            solid(RX - 470, 560, 1060, 80);
+            solid(RX - 330, 0, 30, 560);
+            solid(RX + 400, 0, 30, 560);
+            solid(RX - 10, OY, 114, 10);
+            this.physics.world.setBounds(RX - 470, -400, 1060, 1300);
+
+            // el niño, dormido en la cama; el palo vuelve a la esquina
+            b.reset(RX + 40, OY - 30); b.setVelocity(0, 0); b.setAllowGravity(true);
+            this.scarf.forEach(s => { s.x = s.px = RX + 40; s.y = s.py = OY - 48; });
+            this.hasStick = false; this.facing = 1; this.wake = 0;
+            this.hidePlayer = false; this.deathPose = null; this.cocooned = false;
+
+            // la cámara se acerca, como al principio
+            cam.stopFollow();
+            cam.setBounds(RX - 340, 225, 800, 455);
+            cam.setZoom(ROOM_ZOOM);
+            cam.centerOn(RX + 40, OY - 40);
+            cam.startFollow(this.player, true, 0.08, 0.08, 0, 20);
+            this.zoomUI(ROOM_ZOOM);
+
+            SFX.playMusic({ volume: 0.9, fade: 3 });
+            if (SFX.ambGain) SFX.ambGain.gain.setTargetAtTime(0.1, SFX.ctx.currentTime, 2);
+
+            // despertar: el blanco se disuelve en la mañana
+            this.tweens.add({ targets: this.whiteout, alpha: 0, duration: 3200, ease: 'Sine.easeOut' });
+            this.time.delayedCall(1800, () => this.epiSay('Ya es de día.'));
+            this.time.delayedCall(4200, () => this.tweens.add({
+                targets: this, wake: 1, duration: 1700, ease: 'Sine.easeInOut',
+                onComplete: () => { this.state = 'epilogue'; this.touchUI.forEach(o => o.setVisible(true)); }
+            }));
+            this.time.delayedCall(7600, () => this.momCall());
+        }
+
+        /** Los objetos de pantalla fija también se ven afectados por el zoom: se compensan. */
+        zoomUI(z) {
+            const cx = VIEW_W / 2, cy = VIEW_H / 2;
+            [...this.touchUI, this.volIcon].forEach(o => {
+                if (!o) return;
+                if (o.baseX === undefined) { o.baseX = o.x; o.baseY = o.y; o.baseS = o.scaleX; }
+                o.setPosition(cx + (o.baseX - cx) / z, cy + (o.baseY - cy) / z).setScale(o.baseS / z);
+            });
+        }
+
+        epiSay(text, hold = 3200) {
+            const t = this.epiText;
+            this.tweens.killTweensOf(t);
+            t.setText(text).setAlpha(0);
+            this.tweens.add({ targets: t, alpha: 0.9, duration: 900 });
+            this.tweens.add({ targets: t, alpha: 0, duration: 900, delay: 900 + hold });
+        }
+
+        /** La mamá llama desde el otro lado de la puerta. */
+        momCall() {
+            if (!this.epi || this.epi.door) return;
+            const lines = ['—¡Hijo, a comer!', '—¿Hijo? Te estamos esperando.'];
+            const t = this.epiVoice;
+            SFX.knock();
+            this.tweens.add({ targets: this.epiUnderDoor, alpha: 0.45, duration: 600, yoyo: true, hold: 1800 });
+            this.tweens.killTweensOf(t);
+            t.setText(lines[Math.min(this.epi.calls, lines.length - 1)]).setAlpha(0);
+            this.tweens.add({ targets: t, alpha: 0.95, duration: 700, delay: 500 });
+            this.tweens.add({ targets: t, alpha: 0, duration: 900, delay: 4200 });
+            this.epi.calls++;
+            this.epi.idleT = 0;
+        }
+
+        updateEpilogue(dt) {
+            if (!this.epi || (this.state !== 'epilogue' && this.state !== 'outro')) return;
+            const RX = LEVEL.epilogue.x, OY = 560 - ART.ROOM.floor, px = this.player.body.center.x, ep = this.epi;
+            this.epiCaneGlow.setAlpha(ep.stick ? 0 : 0.3 + 0.1 * Math.sin(this.t * 2.2));
+
+            // si tarda, lo vuelven a llamar
+            ep.idleT += dt;
+            if (!ep.door && ep.idleT > 16) this.momCall();
+
+            const things = [
+                { key: 'curtain', x: RX - 200, label: 'abrir', done: ep.curtain },
+                { key: 'stick', x: RX + 178, label: 'tomar', done: ep.stick },
+                { key: 'door', x: RX + 336, label: 'salir', done: ep.door }
+            ];
+            let near = null;
+            if (this.state === 'epilogue') things.forEach(o => { if (!o.done && Math.abs(px - o.x) < 42 && this.onGround) near = o; });
+            this.noJump = !!near;
+            const p = this.epiPrompt;
+            if (near) p.setText('↑  ' + near.label).setPosition(near.x, OY - 92);
+            p.setAlpha(lerp(p.alpha, near ? 0.75 : 0, 0.15));
+
+            // la acción usa la tecla de saltar
+            const k = this.keys, JD = Phaser.Input.Keyboard.JustDown;
+            const tj = this.readTouch().jump, touchPress = tj && !this.epiTouchPrev; this.epiTouchPrev = tj;
+            const pressed = JD(k.up) || JD(k.w) || JD(k.space) || touchPress;
+            if (!near || !pressed) return;
+
+            if (near.key === 'curtain') {
+                ep.curtain = true;
+                this.tweens.add({ targets: this.epiCurtains[0], x: RX - 278, duration: 1400, ease: 'Sine.easeInOut' });
+                this.tweens.add({ targets: this.epiCurtains[1], x: RX - 122, duration: 1400, ease: 'Sine.easeInOut' });
+                this.tweens.add({ targets: this.epiDim, alpha: 0, duration: 2200 });
+                this.tweens.add({ targets: this.epiBeam, alpha: 0.42, duration: 2200 });
+                this.tweens.add({ targets: this.epiSun, alpha: 0.45, duration: 2200 });
+                SFX.web();
+                this.epiSay('Un poco de luz también\ncambia una habitación.');
+            } else if (near.key === 'stick') {
+                ep.stick = true;
+                this.epiCane.setVisible(false);
+                this.hasStick = true;
+                this.cameras.main.flash(400, 60, 60, 60);
+                SFX.checkpoint();
+                this.epiSay('Sigue aquí.\nTodavía brilla.');
+            } else if (near.key === 'door') {
+                if (!ep.stick) {
+                    this.epiSay('Me falta algo.', 1800);
+                    return;
+                }
+                ep.door = true;
+                this.openDoor();
+            }
+        }
+
+        /** La puerta se abre: luz, y ella esperándolo. Él sale con su palo. */
+        openDoor() {
+            const RX = LEVEL.epilogue.x;
+            this.state = 'outro';
+            this.touchUI.forEach(o => o.setVisible(false));
+            SFX.doorOpen();
+            this.tweens.add({ targets: this.epiDoor, scaleX: 0.12, duration: 1300, ease: 'Sine.easeOut' });
+            this.tweens.add({ targets: this.epiHall, alpha: 1, duration: 1300 });
+            this.tweens.add({ targets: this.epiMom, alpha: 1, duration: 1500, delay: 500 });
+            this.tweens.add({ targets: this.epiUnderDoor, alpha: 0.6, scaleY: 0.3, duration: 1300 });
+            this.time.delayedCall(1400, () => {
+                const v = this.epiVoice;
+                this.tweens.killTweensOf(v);
+                v.setText('—¡Ya voy!').setPosition(this.player.body.center.x, 560 - ART.ROOM.floor - 120).setAlpha(0);
+                this.tweens.add({ targets: v, alpha: 0.95, duration: 500 });
+                this.tweens.add({ targets: v, alpha: 0, duration: 800, delay: 2000 });
+            });
+            this.time.delayedCall(3200, () => this.epiSay('Hay gente que todavía me espera.', 3000));
+            this.time.delayedCall(4600, () => { this.endWalk = 1; });
+            this.time.delayedCall(6400, () => this.tweens.add({
+                targets: this.whiteout, alpha: 1, duration: 2600, ease: 'Sine.easeIn',
+                onComplete: () => {
+                    this.cameras.main.setZoom(1);
+                    this.zoomUI(1);
+                    this.showCredits();
+                }
+            }));
         }
 
         /* =================================================================
@@ -2117,6 +2333,7 @@
             const cam = this.cameras.main;
 
             if (this.roomActive) this.updateRoom(dt);
+            this.updateEpilogue(dt);
             if (this.state !== 'dead') this.updatePlayer(dt);
             else this.player.body.setVelocityX(this.player.body.velocity.x * 0.92);
             this.updateHazards(dt);

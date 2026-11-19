@@ -94,11 +94,15 @@ Inspirado en el tema de *City Walls* (Twenty One Pilots): unas murallas que uno 
 ### Acto final · La luz
 - Pasada la muralla, el último recuerdo (*Me preguntó cuándo volveríamos. / Le dije que pronto.*) y la luz que lleva a la pantalla blanca y los créditos.
 
-### Epílogo · Redecorar
-- El niño despierta en su cama. Es de día. **Suena el soundtrack completo, en bucle.**
-- El jugador puede cambiar algo de la habitación: empujar un mueble (reutiliza la mecánica de la caja), abrir la cortina para que entre luz.
-- El palo vuelve a estar en la esquina, brillando de nuevo. El niño lo toma y **sale a caminar**: la respuesta, por fin, a *¿cuándo volvemos a salir?* → créditos ("para mi abuelo").
-- Al final de los créditos, una línea breve: *si alguna vez te sientes así, habla con alguien.* (Añadir un teléfono de ayuda local verificado.)
+### Epílogo · Redecorar ✅ *implementado*
+- Tras la última línea (*Lo que queda de alguien / a veces cabe en una mano.*), el blanco se disuelve en **la habitación, de día**, con las cortinas cerradas. El niño despierta en la cama: *Ya es de día.* Suena el soundtrack completo.
+- **Su mamá lo llama** desde el otro lado de la puerta (llaman, se ve luz por debajo): *—¡Hijo, a comer!* Si tarda: *—¿Hijo? Te estamos esperando.*
+- Con ↑ junto a cada cosa:
+  - **La ventana**: se abren las cortinas y entra el sol. *Un poco de luz también cambia una habitación.* (redecorar)
+  - **El palo**, de nuevo en la esquina y brillando: *Sigue aquí. Todavía brilla.*
+  - **La puerta**: sin el palo, *Me falta algo.* Con él, la puerta se abre y en la luz del pasillo está **ella**, tendiéndole la mano. *—¡Ya voy!* · *Hay gente que todavía me espera.* Sale con su palo y todo se funde a blanco.
+- Créditos: … *para mi abuelo* · *si alguna vez te sientes así, habla con alguien* · **Stay Alive**.
+- Pendiente: añadir un teléfono de ayuda local verificado bajo la línea de ayuda.
 
 ## 3. Recuerdos del abuelo
 Zarzas con moras y momentos del camino que evocan la historia real en frases cortas, sin contarla de forma literal (ver la tabla del Acto I). Los textos están en `LEVEL.memories` y se pueden reescribir libremente. Idea pendiente: contar en los créditos cuántos recuerdos encontraste.

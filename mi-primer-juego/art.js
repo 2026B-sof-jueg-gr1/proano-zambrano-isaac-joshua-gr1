@@ -445,7 +445,8 @@
      * ===================================================================== */
     const ROOM = { ox: 470, oy: 380, w: 1060, h: 600, floor: 28 };
 
-    function roomBg() {
+    /** day = true: la misma habitación por la mañana (para el epílogo), sin cortinas pintadas. */
+    function roomBg(day = false) {
         const S = 2, { ox: OX, oy: OY, w: W, h: H, floor: F } = ROOM;
         const [c, g] = canvas(W * S, H * S);
         g.scale(S, S); g.translate(OX, OY);
@@ -454,17 +455,17 @@
 
         // pared, luz de luna y papel pintado
         const wg = g.createLinearGradient(0, -OY, 0, F);
-        wg.addColorStop(0, gray(50)); wg.addColorStop(1, gray(84));
+        wg.addColorStop(0, gray(day ? 108 : 50)); wg.addColorStop(1, gray(day ? 142 : 84));
         g.fillStyle = wg; g.fillRect(-OX, -OY, W, OY + F);
         const mg = g.createRadialGradient(-200, -160, 10, -200, -160, 360);
-        mg.addColorStop(0, gray(220, 0.22)); mg.addColorStop(1, gray(220, 0));
+        mg.addColorStop(0, gray(day ? 255 : 220, day ? 0.3 : 0.22)); mg.addColorStop(1, gray(220, 0));
         g.fillStyle = mg; g.fillRect(-OX, -OY, W, OY + F);
         g.fillStyle = gray(0, 0.045);
         for (let x = -OX; x < W - OX; x += 24) g.fillRect(x, -OY, 9, OY + F);
 
         // suelo de madera
         const fl = g.createLinearGradient(0, F, 0, H - OY);
-        fl.addColorStop(0, gray(22)); fl.addColorStop(1, gray(4));
+        fl.addColorStop(0, gray(day ? 46 : 22)); fl.addColorStop(1, gray(day ? 14 : 4));
         g.fillStyle = fl; g.fillRect(-OX, F, W, H - OY - F);
         g.strokeStyle = gray(32); g.lineWidth = 1;
         [36, 47, 62, 82, 108, 140].forEach(y => line(-OX, y, W - OX, y));
@@ -479,11 +480,11 @@
         // ventana con la luna y ramas fuera (anticipan el bosque)
         const wx = -260, wy = -230, ww = 120, wh = 140;
         const gl = g.createLinearGradient(0, wy, 0, wy + wh);
-        gl.addColorStop(0, gray(205)); gl.addColorStop(1, gray(160));
+        gl.addColorStop(0, gray(day ? 250 : 205)); gl.addColorStop(1, gray(day ? 228 : 160));
         g.fillStyle = gl; g.fillRect(wx, wy, ww, wh);
-        g.fillStyle = gray(248); g.beginPath(); g.arc(wx + 84, wy + 32, 11, 0, Math.PI * 2); g.fill();
+        if (!day) { g.fillStyle = gray(248); g.beginPath(); g.arc(wx + 84, wy + 32, 11, 0, Math.PI * 2); g.fill(); }
         g.save(); g.beginPath(); g.rect(wx, wy, ww, wh); g.clip();
-        g.fillStyle = gray(72); g.strokeStyle = gray(72); g.lineCap = 'round';
+        g.fillStyle = gray(day ? 170 : 72); g.strokeStyle = gray(day ? 170 : 72); g.lineCap = 'round';
         const r = rng(321);
         trunk(g, r, wx + 20, wy + wh + 20, wy - 40, 10, true);
         branch(g, r, wx + ww, wy + 60, -1, 3, 70, 3);
@@ -504,7 +505,7 @@
             line(X(-284), -244, X(-286), -56); line(X(-274), -244, X(-280), -56);
             g.strokeStyle = black;
         };
-        curtain(1); curtain(-1);
+        if (!day) { curtain(1); curtain(-1); }
 
         // armario (a la izquierda, medio fuera de cuadro)
         g.fillStyle = black; g.fillRect(-345, -215, 62, 215 + F);
@@ -696,8 +697,38 @@
         return c;
     }
 
+    /* ---------- cortina suelta (epílogo): se abre deslizándose ---------- */
+    const CURTAIN = { w: 70, h: 200 };
+    function curtainPanel() {
+        const S = 2, [c, g] = canvas(CURTAIN.w * S, CURTAIN.h * S);
+        g.scale(S, S); g.fillStyle = '#070707';
+        g.beginPath(); g.moveTo(2, 0); g.lineTo(68, 0);
+        g.quadraticCurveTo(64, 90, 68, 196); g.lineTo(2, 196); g.quadraticCurveTo(6, 100, 2, 0); g.fill();
+        g.strokeStyle = 'rgba(40,40,40,1)'; g.lineWidth = 1;
+        [16, 30, 46, 58].forEach(x => { g.beginPath(); g.moveTo(x, 2); g.quadraticCurveTo(x + 3, 100, x - 1, 194); g.stroke(); });
+        // un hilo de sol se cuela por el borde
+        g.strokeStyle = 'rgba(235,235,235,0.55)'; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(67, 4); g.quadraticCurveTo(63, 90, 67, 192); g.stroke();
+        return c;
+    }
+
+    /* ---------- la mamá: silueta en la puerta, con la mano tendida ---------- */
+    const MOTHER = { w: 80, h: 150 };
+    function mother() {
+        const S = 2, [c, g] = canvas(MOTHER.w * S, MOTHER.h * S);
+        g.scale(S, S); g.fillStyle = '#050505'; g.strokeStyle = '#050505'; g.lineCap = 'round';
+        const cx = 40, by = 148;
+        g.beginPath(); g.arc(cx, 22, 10, 0, Math.PI * 2); g.fill();                         // cabeza
+        g.beginPath(); g.moveTo(cx - 9, 18); g.quadraticCurveTo(cx - 16, 40, cx - 8, 46); g.lineTo(cx + 2, 30); g.fill();   // pelo
+        g.beginPath(); g.moveTo(cx - 8, 34); g.lineTo(cx + 8, 34); g.lineTo(cx + 22, 112); g.lineTo(cx - 22, 112); g.closePath(); g.fill();  // vestido
+        g.lineWidth = 6; g.beginPath(); g.moveTo(cx - 7, by - 36); g.lineTo(cx - 8, by); g.moveTo(cx + 7, by - 36); g.lineTo(cx + 8, by); g.stroke();
+        g.lineWidth = 5; g.beginPath(); g.moveTo(cx + 6, 40); g.lineTo(cx + 2, 78); g.stroke();      // brazo
+        g.beginPath(); g.moveTo(cx - 6, 40); g.lineTo(cx - 22, 66); g.lineTo(cx - 34, 70); g.stroke();  // mano tendida hacia el niño
+        return c;
+    }
+
     window.ART = {
         rng, sky, forestLayer, fog, lightRay, glow, grain, foreground, vignette, crate, trap, mace, boulder, dot, shard, levelChunks,
-        ROOM, BED, CANE, roomBg, roomBed, cane, bramble, darkness, shade, shadowKid
+        ROOM, BED, CANE, roomBg, roomBed, cane, bramble, darkness, shade, shadowKid, CURTAIN, curtainPanel, MOTHER, mother
     };
 })();

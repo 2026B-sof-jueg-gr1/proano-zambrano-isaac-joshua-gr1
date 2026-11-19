@@ -12,7 +12,7 @@ Plataformero atmosférico en blanco y negro hecho con **Phaser 4**, desarrollado
 
 ## El juego
 
-De noche, en su habitación, un niño se hunde en sus pensamientos y despierta en un bosque cubierto de niebla: su propia mente. Para volver tiene que sobrevivir a trampas para osos, fosos con estacas, mazas que se balancean, un estanque, una roca que lo persigue y una araña, hasta llegar a la luz. En la esquina del cuarto brilla el bastón de su abuelo. La historia completa está en [HISTORIA.md](HISTORIA.md).
+De noche, en su habitación, un niño se hunde en sus pensamientos y despierta en un bosque cubierto de niebla: su propia mente. Para volver tiene que sobrevivir a trampas para osos, fosos con estacas, mazas que se balancean, un estanque, una roca que lo persigue y una araña, hasta llegar a la luz. En la esquina del cuarto brilla el palo de caminar de su abuelo. Al final despierta de día: su mamá lo llama a comer, y sale por la puerta con su palo. La historia completa está en [HISTORIA.md](HISTORIA.md).
 
 El estilo visual está inspirado en los plataformeros de silueta en blanco y negro como *LIMBO* (Playdead). El personaje, el nivel, el arte y el sonido son originales y no usan ningún recurso de ese juego.
 
@@ -24,6 +24,7 @@ El estilo visual está inspirado en los plataformeros de silueta en blanco y neg
 | Saltar | ↑, W o Espacio | botón ↑ |
 | Empujar la caja | camina contra ella | — |
 | Reintentar desde el último punto de control | R | — |
+| Abrir, tomar, salir (en la habitación del final) | ↑, W o Espacio | botón ↑ |
 | Silenciar | M | — |
 | Volumen (música, ambiente, efectos) | V | icono ♪ |
 | Adelantar los pensamientos del inicio | cualquier tecla | toque |

@@ -263,6 +263,20 @@
                 this._tone({ freq: f, dur: 4.5, gain: 0.025, attack: 1.2 + i * 0.25, wet: 1, when: 0.3 }));
         },
 
+        /* ---- epílogo ---- */
+        /** Llaman a la puerta. */
+        knock() {
+            [0, 0.22, 0.42].forEach(w => {
+                this._tone({ freq: 140, to: 70, dur: 0.12, gain: 0.22, wet: 0.3, when: w });
+                this._noise({ dur: 0.05, type: 'lowpass', freq: 900, gain: 0.18, wet: 0.3, when: w });
+            });
+        },
+        /** La puerta se abre despacio. */
+        doorOpen() {
+            this._tone({ freq: 210, to: 330, dur: 1.1, type: 'sawtooth', gain: 0.012, attack: 0.3, wet: 0.6 });
+            this._noise({ dur: 0.9, type: 'bandpass', freq: 700, q: 2, sweepTo: 1100, gain: 0.05, attack: 0.25, wet: 0.5 });
+        },
+
         /** Reloj de la habitación (tic / tac). */
         clock(tock = false) {
             this._noise({ dur: 0.035, type: 'bandpass', freq: tock ? 1700 : 2300, q: 5, gain: 0.07, wet: 0.5 });
