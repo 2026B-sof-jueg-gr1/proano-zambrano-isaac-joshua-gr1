@@ -663,8 +663,41 @@
         return c;
     }
 
+    /* ---------- mancha oscura suave (humo, sombra en el suelo, fondo de textos) ---------- */
+    function shade(size) {
+        const [c, g] = canvas(size, size);
+        const rg = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+        rg.addColorStop(0, 'rgba(0,0,0,0.8)'); rg.addColorStop(0.5, 'rgba(0,0,0,0.45)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = rg; g.fillRect(0, 0, size, size);
+        return c;
+    }
+
+    /* ---------- la sombra del niño: su misma forma, más alta, con borde de luz y pies de humo ---------- */
+    function shadowKid() {
+        const W = 110, H = 190, [c, g] = canvas(W, H);
+        const cx = W / 2, by = H - 12;
+        g.save();
+        g.shadowColor = 'rgba(215,215,215,0.75)'; g.shadowBlur = 10;      // borde de luz: se ve sobre la oscuridad
+        g.fillStyle = '#000';
+        g.beginPath();                                                      // cuerpo y abrigo
+        g.moveTo(cx - 13, by - 52); g.lineTo(cx + 13, by - 52); g.lineTo(cx + 9, by - 108); g.lineTo(cx - 9, by - 108); g.closePath(); g.fill();
+        g.lineCap = 'round'; g.strokeStyle = '#000';
+        g.lineWidth = 9; g.beginPath(); g.moveTo(cx - 5, by - 54); g.lineTo(cx - 7, by); g.moveTo(cx + 5, by - 54); g.lineTo(cx + 7, by); g.stroke();
+        g.lineWidth = 7; g.beginPath(); g.moveTo(cx - 9, by - 104); g.lineTo(cx - 15, by - 62); g.moveTo(cx + 9, by - 104); g.lineTo(cx + 15, by - 62); g.stroke();
+        g.beginPath(); g.arc(cx + 2, by - 126, 20, 0, Math.PI * 2); g.fill();                         // cabeza
+        g.beginPath(); g.moveTo(cx - 8, by - 143); g.lineTo(cx - 34, by - 118); g.lineTo(cx - 4, by - 108); g.closePath(); g.fill();  // capucha
+        g.restore();
+        // los pies se deshacen en humo
+        g.globalCompositeOperation = 'destination-out';
+        const fade = g.createLinearGradient(0, by - 40, 0, H);
+        fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(0,0,0,1)');
+        g.fillStyle = fade; g.fillRect(0, by - 40, W, H);
+        g.globalCompositeOperation = 'source-over';
+        return c;
+    }
+
     window.ART = {
         rng, sky, forestLayer, fog, lightRay, glow, grain, foreground, vignette, crate, trap, mace, boulder, dot, shard, levelChunks,
-        ROOM, BED, CANE, roomBg, roomBed, cane, bramble, darkness
+        ROOM, BED, CANE, roomBg, roomBed, cane, bramble, darkness, shade, shadowKid
     };
 })();

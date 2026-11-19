@@ -31,6 +31,7 @@ UMBRAL nace de las caminatas por el bosque que el autor hacía de niño con su a
 | **La niebla** | Los recuerdos más duros: no se ve casi nada, solo lo que alumbra lo que él te dejó. |
 | **Las raíces** | Lo que te agarra por debajo cuando avanzas sin mirar. |
 | **El ciclo y la muralla** | Pensar en círculo. La muralla la levanta uno mismo, y solo cae cuando dejas de huir. |
+| **La sombra** | Los pensamientos oscuros. No desaparecen: cuando la dejas alcanzarte, se vuelve tu sombra. Te acompaña, pero no eres tú. |
 | **La luz del final** | Despertar. Volver a la habitación. |
 
 ## 2. Estructura
@@ -78,14 +79,17 @@ UMBRAL nace de las caminatas por el bosque que el autor hacía de niño con su a
 ### Acto II · La niebla ✅ *implementado* (x 8 700 – 10 950)
 - La niebla se cierra y todo queda a oscuras. **Solo se ve el círculo de luz del palo**, que brilla más que nunca.
 - Dentro hay trampas para osos, dos fosos con estacas y una trampa nueva, las **raíces con espinas**: al acercarse, la tierra cruje y asoman las puntas; medio segundo después brotan de golpe. Hay que pararse y esperar a que se retiren, o saltarlas en el momento justo.
-- Los recuerdos de aquí son los más duros y llegan **borrosos**: dos copias del texto que solo se juntan y se enfocan cuando el niño se acerca.
+- Los recuerdos de aquí son los más duros y aparecen como **humo claro** sobre la oscuridad: se deshacen de lejos y se enfocan cuando el niño se acerca.
 
 ### Acto III · El ciclo ✅ *implementado* (x 11 000 – 11 900)
 Inspirado en el tema de *City Walls* (Twenty One Pilots): unas murallas que uno mismo levanta y un ciclo del que cuesta salir. No usa letra de la canción.
-- El camino termina en una **muralla de espinas**. Al llegar, un parpadeo y el niño vuelve al principio del mismo tramo. Cada vuelta todo está más oscuro, la música más lejos y la luz más débil.
-- Lo que piensa en cada vuelta (`LOOP_TEXTS`): *Otra vez aquí.* → *Camino y camino, y siempre vuelvo al mismo lugar.* → *Estas paredes no son de piedra. Las levanté yo.* → *Quizá no se trata de seguir caminando.* → *La luz todavía está ahí. Quizá sea la última vez.*
-- **Solo hay una forma de romper el ciclo:** dejar de caminar. En medio del tramo cae un rayo de luz; quedarse **quieto** dentro de él unos 2,6 s hace que el palo brille cada vez más y la música vuelva. Si se mueve, se pierde. Al completarse, la muralla cae: *Me quedé quieto. Y por fin, pude recordar.*
-- La luz nunca desaparece del todo, para que el jugador no se quede atrapado, pero cada vuelta es más débil: siempre se siente como la última oportunidad.
+- El camino termina en una **muralla de espinas**. Al llegar, un parpadeo y el niño vuelve al principio del mismo tramo. Cada vuelta todo está más oscuro y la música más lejos.
+- Desde la primera vuelta lo sigue **una sombra con su misma forma**, más alta, con un borde de luz y pies de humo. Cada vuelta está más cerca.
+- Lo que piensa en cada vuelta (`LOOP_TEXTS`), como humo claro:
+  *Otra vez aquí.* → *Camino y camino, y siempre vuelvo al mismo lugar.* → *Estas paredes no son de piedra. Las levanté yo.* → *Algo me sigue. Siempre ha estado ahí.* → *Ya no quiero huir. Quizá solo tengo que dejar que me alcance.*
+- **Hasta completar esos pensamientos no hay salida.** En la última vuelta, al entrar en el rayo de luz, **el palo empieza a parpadear**.
+- **La única forma de romper el ciclo:** quedarse quieto en la luz y dejar que la sombra lo alcance (`LEVEL.loop.needed`, unos 2,6 s). No le hace daño: se funde con él y queda como **su sombra en el suelo**. *No se va a ir del todo. / Pero es mi sombra. No soy yo.* La muralla cae.
+- La metáfora: no se trata de vencer los pensamientos oscuros ni de huir de ellos, sino de aceptar que existen sin dejar que nos definan.
 
 ### Acto final · La luz
 - Pasada la muralla, el último recuerdo (*Me preguntó cuándo volveríamos. / Le dije que pronto.*) y la luz que lleva a la pantalla blanca y los créditos.

@@ -146,8 +146,8 @@
         memory: { vol: 0.72, cutoff: 3200 },       // junto a un recuerdo: se abre un poco
         big:    { vol: 0.85, cutoff: 8000 },       // el árbol de moras
         dread:  { vol: 0.16, cutoff: 420 },        // la araña: los pensamientos oscuros la tapan
-        fog:    { vol: 0.32, cutoff: 600 },        // la niebla
-        loop:   { vol: 0.24, cutoff: 480 }         // el ciclo (cada vuelta un poco más lejos)
+        fog:    { vol: 0.5,  cutoff: 1500 },       // la niebla: lejana, pero se oye
+        loop:   { vol: 0.48, cutoff: 1100 }        // el ciclo (cada vuelta un poco más lejos)
     };
 
     // El ciclo: lo que piensa cada vez que vuelve al mismo lugar, y al romperlo
@@ -156,10 +156,10 @@
         'Otra vez aquí.',
         'Camino y camino,\ny siempre vuelvo al mismo lugar.',
         'Estas paredes no son de piedra.\nLas levanté yo.',
-        'Quizá no se trata de seguir caminando.',
-        'La luz todavía está ahí.\nQuizá sea la última vez.'
+        'Algo me sigue.\nSiempre ha estado ahí.',
+        'Ya no quiero huir.\nQuizá solo tengo que dejar que me alcance.'
     ];
-    const LOOP_BREAK = 'Me quedé quieto.\nY por fin, pude recordar.';
+    const LOOP_BREAK = 'No se va a ir del todo.\nPero es mi sombra. No soy yo.';
 
     // Monólogo interno en la habitación (cada línea se puede adelantar con una tecla)
     const MONOLOGUE = [
@@ -227,6 +227,8 @@
             add('bramble', ART.bramble(130, 70, 5, 10));
             add('brambleBig', ART.bramble(300, 150, 9, 40));
             add('darkness', ART.darkness(1280, 720, 150));
+            add('shadeBlob', ART.shade(128));
+            add('shadowKid', ART.shadowKid());
             ART.levelChunks(LEVEL, 1024).forEach((ch, i) => add('chunk' + i, ch.canvas));
         }
 
@@ -653,9 +655,11 @@
                 // parche de niebla clara detrás del texto: se lee también sobre los troncos
                 o.halo = this.add.image(m.x, m.y - 190, 'glow').setScale(o.txt.width / 70, 1.5).setDepth(13.5).setAlpha(0);
                 o.vis = 0;
-                if (m.blur) o.ghosts = [0, 1].map(() => this.add.text(m.x, m.y - 190, m.text, {
-                    fontFamily: serif, fontStyle: 'italic', fontSize: '27px', color: '#101010', align: 'center', lineSpacing: 6
-                }).setOrigin(0.5).setDepth(13.6).setAlpha(0));
+                if (m.blur) {
+                    // en la niebla: humo claro por encima de la oscuridad, en lugar de texto oscuro
+                    o.txt.setVisible(false); o.halo.setVisible(false);
+                    o.smoke = this.makeSmoke(m.x, m.y - 190, m.text, 27);
+                }
                 return o;
             });
             this.musicSwell = 0;
@@ -696,7 +700,7 @@
             // la niebla y el ciclo: cada vuelta suena más lejos; en la luz, vuelve
             if (this.fogK > 0.01) cur = mixT(cur, M.fog, this.fogK * 0.85);
             if (this.loopK > 0.01) {
-                const L = this.loopBroken ? M.memory : { vol: Math.max(0.1, M.loop.vol - 0.04 * this.loopN), cutoff: M.loop.cutoff };
+                const L = this.loopBroken ? M.memory : { vol: Math.max(0.3, M.loop.vol - 0.03 * this.loopN), cutoff: Math.max(700, M.loop.cutoff - 60 * this.loopN) };
                 cur = mixT(cur, L, this.loopK);
             }
             if (this.loopProgress > 0.01) cur = mixT(cur, M.big, this.loopProgress);
@@ -735,13 +739,9 @@
                 const show = m === active && !othersVisible && this.state !== 'credits';
                 m.vis = lerp(m.vis, show ? 0.85 : 0, show ? 0.03 : 0.08);
                 m.halo.setAlpha(m.vis * 0.6);
-                if (m.ghosts) {
-                    // borroso: dos copias desplazadas que se juntan a medida que el niño se acerca
-                    const k = clamp((d - 40) / 210, 0, 1), w = Math.sin(this.t * 1.3 + m.x) * 2;
-                    m.txt.setAlpha(m.vis * (1 - 0.6 * k));
-                    m.ghosts[0].setPosition(m.x - (4 + 16 * k) + w, m.y - 190 - 3 * k).setAlpha(m.vis * 0.45 * k);
-                    m.ghosts[1].setPosition(m.x + (4 + 16 * k) - w, m.y - 190 + 3 * k).setAlpha(m.vis * 0.45 * k);
-                } else m.txt.setAlpha(m.vis);
+                // en la niebla: humo que se deshace lejos y se enfoca al acercarse
+                if (m.smoke) this.drawSmoke(m.smoke, m.vis, clamp((d - 40) / 210, 0, 1));
+                else m.txt.setAlpha(m.vis);
             });
         }
 
@@ -760,13 +760,47 @@
         /* =================================================================
          * 2d. LA NIEBLA Y EL CICLO
          *   Niebla: todo se oscurece; solo la luz del palo deja ver las
-         *   trampas, los fosos y las raíces. Los recuerdos llegan borrosos.
-         *   Ciclo: el camino se repite detrás de una muralla de espinas.
-         *   Solo hay una forma de romperlo: dejar de caminar y quedarse
-         *   quieto en la luz, con el palo, hasta poder recordar.
+         *   trampas, los fosos y las raíces. Los recuerdos llegan como humo.
+         *   Ciclo: el camino se repite detrás de una muralla de espinas, y
+         *   una sombra con su forma lo sigue cada vez más cerca. Cuando ya
+         *   lo ha pensado todo (LOOP_TEXTS), el palo parpadea en la luz:
+         *   si se queda quieto, la sombra lo alcanza y se vuelve su sombra
+         *   en el suelo. No desaparece, pero ya no lo define. La muralla cae.
          * ================================================================= */
+
+        /** Texto de humo: claro, con dos copias que se deshacen alrededor y una sombra suave detrás. */
+        makeSmoke(x, y, text, size = 28) {
+            const style = {
+                fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic',
+                fontSize: size + 'px', color: '#ececec', align: 'center', lineSpacing: 6
+            };
+            const o = { x, y, vis: 0 };
+            o.blob = this.add.image(x, y, 'shadeBlob').setDepth(14.65).setAlpha(0);
+            o.ghosts = [0, 1].map(() => this.add.text(x, y, text, style).setOrigin(0.5).setDepth(14.68).setAlpha(0));
+            o.main = this.add.text(x, y, text, style).setOrigin(0.5).setDepth(14.7).setAlpha(0);
+            this.setSmokeText(o, text);
+            return o;
+        }
+        setSmokeText(o, text, x = o.x, y = o.y) {
+            o.x = x; o.y = y;
+            [o.main, ...o.ghosts].forEach(t => t.setText(text));
+            o.blob.setScale(Math.max(1, o.main.width / 85 + 0.8), Math.max(1, o.main.height / 55 + 0.9));
+        }
+        /** blurK: 0 = nítido, 1 = deshecho en humo. */
+        drawSmoke(o, vis, blurK = 0.2) {
+            const t = this.t;
+            o.main.setPosition(o.x, o.y + Math.sin(t * 0.9 + o.x) * 1.5).setAlpha(vis * (1 - 0.5 * blurK));
+            o.ghosts.forEach((g, i) => {
+                const s = i ? 1 : -1;
+                g.setPosition(o.x + s * (3 + 16 * blurK) + Math.sin(t * 1.1 + i * 2) * 3,
+                              o.y - 4 - 7 * Math.abs(Math.sin(t * 0.6 + i * 1.7)) + s * 2 * blurK)
+                 .setAlpha(vis * 0.32 * (0.45 + blurK));
+            });
+            o.blob.setPosition(o.x, o.y).setAlpha(vis * 0.6);
+        }
+
         createNight() {
-            const LP = LEVEL.loop, serif = '"Cormorant Garamond", Georgia, serif';
+            const LP = LEVEL.loop;
             this.darkImg = this.add.image(0, 0, 'darkness').setScrollFactor(0).setDepth(14.5).setAlpha(0);
             this.darkA = 0; this.fogK = 0; this.loopK = 0;
 
@@ -785,9 +819,16 @@
             const wz = this.add.zone(LP.wallX + 20, 260, 70, 600);
             this.physics.add.existing(wz, true);
             this.loopWallCol = this.physics.add.collider(this.player, wz);
-            this.loopText = this.add.text(LP.a + 330, 360, '', {
-                fontFamily: serif, fontStyle: 'italic', fontSize: '28px', color: '#cfcfcf', align: 'center', lineSpacing: 6
-            }).setOrigin(0.5).setDepth(14.7).setAlpha(0);
+            this.loopSmoke = this.makeSmoke(LP.a + 330, 360, '');
+
+            // la sombra: tiene su forma, lo sigue y deja un rastro de humo
+            this.shade = { x: LP.a - 500, active: false, merged: false, a: 0 };
+            this.shadeImg = this.add.image(0, 0, 'shadowKid').setOrigin(0.5, 1).setDepth(14.8).setAlpha(0);
+            this.shadeFx = this.add.particles(0, 0, 'shadeBlob', {
+                emitting: false, lifespan: 1400, speedY: { min: -40, max: -15 }, speedX: { min: -12, max: 12 },
+                scale: { start: 0.25, end: 0.7 }, alpha: { start: 0.35, end: 0 }, frequency: 90
+            }).setDepth(14.75);
+            this.groundShade = this.add.image(0, 0, 'shadeBlob').setDepth(11.9).setAlpha(0);   // su sombra en el suelo, al final
         }
 
         resetRoots() { this.roots.forEach(r => { r.phase = 'idle'; r.t = 0; r.h = 0; }); }
@@ -799,8 +840,8 @@
 
             /* ---- oscuridad: solo se ve lo que alumbra el palo ---- */
             this.fogK = ramp(px, F.from, F.from + 260) * (1 - ramp(px, F.to - 220, F.to));
-            this.loopK = ramp(px, LP.a - 160, LP.a) * (1 - ramp(px, LP.wallX, LP.wallX + 160));
-            const loopLevel = Math.min(0.9, 0.55 + 0.09 * this.loopN) * this.loopFade;
+            this.loopK = ramp(px, LP.a - 160, LP.a) * (1 - ramp(px, LP.wallX + 40, LP.wallX + 260));
+            const loopLevel = Math.min(0.88, 0.55 + 0.07 * this.loopN) * this.loopFade;
             const target = Math.max(this.fogK * 0.95, this.loopK * loopLevel);
             this.darkA = lerp(this.darkA, target, Math.min(1, dt * 3));
             const cam = this.cameras.main;
@@ -808,7 +849,6 @@
             const radius = lerp(230, 320, this.loopK) * flick * (1 + this.loopProgress * 0.6);
             this.darkImg.setPosition(b.center.x - cam.scrollX, b.center.y - 12 - cam.scrollY)
                 .setScale(radius / 150).setAlpha(this.darkA).setVisible(this.darkA > 0.01);
-            this.stickBoost = Math.max(this.fogK * 0.5, this.loopProgress);
 
             /* ---- raíces que brotan del suelo ---- */
             const g = this.rootG; g.clear();
@@ -836,24 +876,70 @@
             });
 
             /* ---- el ciclo ---- */
-            if (!this.loopBroken) {
+            const gateOpen = this.loopN >= LOOP_TEXTS.length - 1;          // ya lo pensó todo
+            const nearLight = Math.abs(px - LP.spot) < 60;
+            this.stickBlink = !this.loopBroken && gateOpen && nearLight && this.loopK > 0.5;
+            if (!this.loopBroken && !this.merging) {
                 if (alive && px > LP.b && !this.blinking) this.loopTeleport();
-                const inLight = alive && this.onGround && Math.abs(px - LP.spot) < 50 && Math.abs(b.velocity.x) < 15;
-                this.stillT = inLight ? this.stillT + dt : Math.max(0, this.stillT - dt * 1.5);
+                const still = alive && gateOpen && this.onGround && nearLight && Math.abs(b.velocity.x) < 15;
+                this.stillT = still ? this.stillT + dt : Math.max(0, this.stillT - dt * 1.5);
                 this.loopProgress = clamp(this.stillT / LP.needed, 0, 1);
-                if (inLight && this.stillT > 0.2 && !this.lightHum) { this.lightHum = true; SFX.checkpoint(); }
-                if (!inLight && this.stillT <= 0) this.lightHum = false;
-                if (this.loopProgress >= 1) this.breakLoop();
-            } else this.loopProgress = Math.max(0, this.loopProgress - dt * 0.4);
+                if (still && this.stillT > 0.15 && !this.lightHum) { this.lightHum = true; SFX.checkpoint(); }
+                if (!still && this.stillT <= 0) this.lightHum = false;
+                if (this.loopProgress >= 1) this.mergeShade();
+            } else if (this.loopBroken) this.loopProgress = Math.max(0, this.loopProgress - dt * 0.4);
+            this.stickBoost = Math.max(this.fogK * 0.5, this.loopProgress, this.stickBlink ? 0.35 : 0);
 
-            const base = Math.max(0.14, 0.42 - 0.07 * this.loopN);
-            const rayA = this.loopBroken ? 0 : (base + this.loopProgress * 0.5) * (0.85 + 0.15 * Math.sin(this.t * 1.7));
+            const base = gateOpen ? 0.55 : Math.max(0.16, 0.42 - 0.06 * this.loopN);
+            const rayA = this.loopBroken ? 0 : (base + this.loopProgress * 0.4) * (0.85 + 0.15 * Math.sin(this.t * 1.7));
             this.loopRay.setAlpha(lerp(this.loopRay.alpha, rayA * clamp(this.loopK * 1.5, 0, 1), 0.08));
 
-            const showLoopText = (this.loopBroken ? Math.abs(px - LP.spot) < 380 : this.loopN > 0 && px > LP.a - 50 && px < LP.b + 50);
-            this.loopText.setAlpha(lerp(this.loopText.alpha, showLoopText && this.loopText.text ? 0.85 : 0, 0.04));
-            const tc = this.darkA > 0.4 ? '#d0d0d0' : '#121212';         // claro sobre la oscuridad, oscuro sobre la niebla
-            if (this.loopText.style.color !== tc) this.loopText.setColor(tc);
+            /* ---- la sombra ---- */
+            this.updateShade(dt, px, gateOpen);
+
+            /* ---- lo que piensa en el ciclo ---- */
+            const o = this.loopSmoke;
+            const showLoop = this.loopBroken ? Math.abs(px - o.x) < 420 : this.loopN > 0 && px > LP.a - 50 && px < LP.b + 50;
+            o.vis = lerp(o.vis, showLoop && o.main.text ? 0.9 : 0, 0.04);
+            this.drawSmoke(o, o.vis, this.loopBroken ? 0.1 : 0.3);
+        }
+
+        updateShade(dt, px, gateOpen) {
+            const S = this.shade, LP = LEVEL.loop, img = this.shadeImg;
+            if (S.merged) {
+                // ya es su sombra: alargada en el suelo, a sus pies, desvaneciéndose poco a poco
+                this.groundShade.setPosition(px - 26, 562).setAlpha(Math.max(0, this.groundShade.alpha - dt * 0.05));
+                img.setAlpha(0); this.shadeFx.stop();
+                return;
+            }
+            S.active = this.loopN > 0 && this.loopK > 0.3 && !this.loopBroken;
+            // cada vuelta más cerca; cuando se queda quieto en la luz, llega hasta él
+            const D = Math.max(120, 420 - 75 * (this.loopN - 1)) * (1 - this.loopProgress);
+            const tx = px - D - 8;
+            if (this.merging) S.x = lerp(S.x, px - 4, Math.min(1, dt * 3));
+            else S.x = lerp(S.x, tx, Math.min(1, dt * (S.x < tx - 400 ? 6 : 1.6)));
+            S.a = lerp(S.a, S.active || this.merging ? 0.95 : 0, Math.min(1, dt * 2));
+            const bob = Math.sin(this.t * 2.1) * 2;
+            img.setPosition(S.x, 562 + bob).setAlpha(S.a).setFlipX(false).setScale(1, 1 + Math.sin(this.t * 1.3) * 0.02);
+            this.shadeFx.setPosition(S.x, 500);
+            if (S.a > 0.3 && !this.shadeFx.emitting) this.shadeFx.start();
+            if (S.a <= 0.3 && this.shadeFx.emitting) this.shadeFx.stop();
+        }
+
+        /** La sombra lo alcanza… y se vuelve su sombra en el suelo. Entonces el ciclo se rompe. */
+        mergeShade() {
+            if (this.merging) return;
+            this.merging = true;
+            SFX.blink();
+            this.time.delayedCall(1300, () => {
+                const S = this.shade;
+                S.merged = true;
+                const px = this.player.body.center.x;
+                this.groundShade.setPosition(px - 26, 562).setScale(2.6, 0.32).setAlpha(0.7);
+                this.shadeFx.explode(18, px, 520);
+                this.merging = false;
+                this.breakLoop();
+            });
         }
 
         drawRoot(g, r) {
@@ -862,7 +948,6 @@
             const C = 0x030303, n = 5;
             if (r.phase === 'warn') {
                 // la tierra se agrieta y asoman las puntas
-                g.lineStyle(1.5, C, 1);
                 for (let i = 0; i < n; i++) {
                     const x = r.x - r.w / 2 + (i + 0.5) * r.w / n, tip = 5 + Math.abs(Math.sin(this.t * 38 + i)) * 5;
                     g.fillStyle(C, 1); g.fillTriangle(x - 3, r.y + 1, x + 3, r.y + 1, x + Math.sin(i) * 2, r.y - tip);
@@ -894,14 +979,16 @@
                 b.setVelocity(vx, vy);
                 cam.scrollX -= D;
                 this.scarf.forEach(s => { s.x -= D; s.px -= D; });
+                this.shade.x -= D;
                 this.loopN++;
-                this.loopText.setText(LOOP_TEXTS[Math.min(this.loopN, LOOP_TEXTS.length - 1)]).setAlpha(0);
+                this.setSmokeText(this.loopSmoke, LOOP_TEXTS[Math.min(this.loopN, LOOP_TEXTS.length - 1)], LP.a + 330, 360);
+                this.loopSmoke.vis = 0;
                 cam.fadeIn(360, 0, 0, 0);
                 this.blinking = false;
             });
         }
 
-        /** Quedarse quieto en la luz: el ciclo se rompe y la muralla cae. */
+        /** El ciclo se rompe: la muralla cae. La oscuridad se aclara, pero no del todo. */
         breakLoop() {
             const LP = LEVEL.loop;
             this.loopBroken = true;
@@ -912,11 +999,12 @@
             this.shardFx.explode(30, LP.wallX, 470);
             this.dustFx.explode(30, LP.wallX, 560);
             SFX.breakFree();
-            this.cameras.main.flash(1200, 210, 210, 210);
+            this.cameras.main.flash(1000, 200, 200, 200);
             this.cameras.main.shake(500, 0.006);
-            this.tweens.add({ targets: this, loopFade: 0, duration: 2600, ease: 'Sine.easeInOut' });
+            this.tweens.add({ targets: this, loopFade: 0.45, duration: 2600, ease: 'Sine.easeInOut' });
             this.musicSwell = 1;
-            this.loopText.setPosition(LP.spot, 340).setText(LOOP_BREAK).setAlpha(0);
+            this.setSmokeText(this.loopSmoke, LOOP_BREAK, this.player.body.center.x + 40, 350);
+            this.loopSmoke.vis = 0;
         }
 
         /* =================================================================
@@ -1225,8 +1313,9 @@
                 g.lineStyle(1.6, 0xe6e6e6, 0.95); g.lineBetween(A[0], A[1], B[0], B[1]);
                 const M = T(hd[0], hd[1] + 4);
                 const boost = this.stickBoost || 0;
-                this.stickGlow.setPosition(M[0], M[1]).setScale(0.35 * (1 + 1.6 * boost))
-                    .setAlpha(0.2 * (1 + 2.2 * boost) * (0.85 + 0.15 * Math.sin(this.t * 2.3)));
+                const blink = this.stickBlink ? (Math.sin(this.t * 7) > 0 ? 1.6 : 0.35) : 1;
+                this.stickGlow.setPosition(M[0], M[1]).setScale(0.35 * (1 + 1.6 * boost) * (this.stickBlink ? 1.4 : 1))
+                    .setAlpha(0.2 * (1 + 2.2 * boost) * blink * (0.85 + 0.15 * Math.sin(this.t * 2.3)));
             }
             if (this.stickGlow) this.stickGlow.setVisible(showStick);
 
