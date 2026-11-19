@@ -92,6 +92,9 @@
         ]
     };
 
+    // Soundtrack (musica/umbral.mp3): volumen al empezar y tramo en el que se apaga al hundirse
+    const MUSIC = { introVol: 0.75, fadeFrom: 700, fadeTo: 1700 };
+
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -319,9 +322,14 @@
 
         anyInput() {
             SFX.init();
-            if (this.state === 'title' && this.t > 0.6) this.beginPlay(false);
-            else if (this.state === 'credits' && this.creditsReady) {
+            if (this.state === 'title' && this.t > 0.6) {
+                // el soundtrack es "la realidad": suena al empezar y se apaga al adentrarse en el bosque
+                SFX.playMusic({ volume: MUSIC.introVol, fade: 1.5, restart: true });
+                this.introMusic = true;
+                this.beginPlay(false);
+            } else if (this.state === 'credits' && this.creditsReady) {
                 this.state = 'leaving';
+                SFX.stopMusic(1.2);
                 SFX.resetAmbience();
                 this.cameras.main.fadeOut(1200, 0, 0, 0);
                 this.cameras.main.once('camerafadeoutcomplete', () => this.scene.restart({ skipTitle: false }));
@@ -1302,14 +1310,17 @@
                 [cy - 80, 'UMBRAL', 84, '300', 30],
                 [cy + 10, 'un juego de Isaac Proaño', 28, 'italic', 2],
                 [cy + 50, 'hecho con Phaser 4  ·  2026', 20, 'normal', 4],
-                [cy + 150, this.isTouch ? 'toca para volver a empezar' : 'pulsa cualquier tecla para volver a empezar', 18, 'italic', 1]
+                [cy + 88, 'música: «Redecorate» (Stems Shutter) — Twenty One Pilots', 18, 'italic', 1],
+                [cy + 112, 'versión hecha con los stems por Nic Stonewood', 16, 'italic', 1],
+                [cy + 170, this.isTouch ? 'toca para volver a empezar' : 'pulsa cualquier tecla para volver a empezar', 18, 'italic', 1]
             ];
+            const lastLine = lines.length - 1;
             const black = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x000000).setOrigin(0).setScrollFactor(0).setDepth(46).setAlpha(0);
             this.tweens.add({ targets: black, alpha: 1, duration: 3500, delay: 800 });
             lines.forEach(([y, s, size, style, ls], i) => {
                 const t = this.add.text(cx, y, s, { fontFamily: serif, fontSize: size + 'px', fontStyle: style, color: '#d8d8d8' })
                     .setOrigin(0.5).setScrollFactor(0).setDepth(47).setLetterSpacing(ls).setAlpha(0);
-                this.tweens.add({ targets: t, alpha: i === 3 ? 0.55 : 0.92, duration: 2500, delay: 4200 + i * 1100 });
+                this.tweens.add({ targets: t, alpha: i === lastLine ? 0.55 : 0.92, duration: 2500, delay: 4200 + i * 1100 });
             });
             this.time.delayedCall(7500, () => { this.creditsReady = true; });
         }
@@ -1346,8 +1357,16 @@
                 m.setPosition(x, y).setAlpha(m.baseA * (0.6 + 0.4 * Math.sin(this.t * 1.3 + m.seed)));
             });
 
-            // textos de ayuda: aparecen al acercarse
             const px = this.player.body.center.x;
+
+            // la música se apaga a medida que el niño se adentra en el bosque
+            if (this.introMusic) {
+                const k = clamp((px - MUSIC.fadeFrom) / (MUSIC.fadeTo - MUSIC.fadeFrom), 0, 1);
+                if (k >= 1 && this.state === 'play') { this.introMusic = false; SFX.stopMusic(2.5); }
+                else SFX.setMusicVolume(MUSIC.introVol * (1 - k));
+            }
+
+            // textos de ayuda: aparecen al acercarse
             this.hints.forEach((h, i) => {
                 const d = Math.abs(h.x - px);
                 const target = this.state === 'play' ? clamp(1 - (d - 120) / 260, 0, 0.7) : 0;

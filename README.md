@@ -4,6 +4,8 @@ Plataformero atmosférico en blanco y negro hecho con **Phaser 4**, desarrollado
 
 **Autor:** Isaac Joshua Proaño Zambrano
 
+**Música:** *Redecorate - Stems Shutter*, versión hecha por **Nic Stonewood** (YouTube) a partir de los stems de *Redecorate* de Twenty One Pilots. Todos los derechos de la canción pertenecen a sus autores; se usa sin fines comerciales en un proyecto académico.
+
 🎮 **Jugar:** https://2026b-sof-jueg-gr1.github.io/proano-zambrano-isaac-joshua-gr1/
 
 ---
@@ -27,9 +29,9 @@ El estilo visual está inspirado en los plataformeros de silueta en blanco y neg
 ## Aspectos técnicos
 
 - **Phaser 4.2** cargado por CDN (jsDelivr), con una copia local en `lib/` por si el CDN falla.
-- **Sin archivos de imagen ni de audio.** Todo se genera por código al arrancar:
+- **Sin archivos de imagen.** El arte y los efectos de sonido se generan por código al arrancar; la única pista grabada es el soundtrack (`musica/umbral.mp3`):
   - `art.js`: genera con Canvas 2D el cielo, cuatro capas de bosque con desenfoque, la niebla, los rayos de luz, el suelo del nivel, la utilería y el grano de película.
-  - `audio.js`: sintetiza con Web Audio API el viento, un dron ambiental, pasos, saltos, trampas, agua, la roca y la música del final.
+  - `audio.js`: sintetiza con Web Audio API el viento, un dron ambiental, pasos, saltos, trampas, agua y la roca, y controla el soundtrack (suena al empezar, se apaga al adentrarse en el bosque y vuelve en bucle en el final).
 - **Personaje con animación procedural**: las piernas, los brazos y la inclinación se calculan con la velocidad, y la bufanda usa física Verlet.
 - **Filtros de Phaser 4**: un `ColorMatrix` en la cámara aplica gradación y parpadeo de proyector.
 - **Física Arcade** con *coyote time*, *jump buffer*, salto variable y caja empujable.
@@ -39,11 +41,13 @@ El estilo visual está inspirado en los plataformeros de silueta en blanco y neg
 
 ```
 ├── index.html              → redirige a mi-primer-juego/
+├── HISTORIA.md             → documento de historia y diseño narrativo
 └── mi-primer-juego/
     ├── index.html          → carga Phaser y los scripts
     ├── game.js             → escena, nivel, personaje, peligros y final
     ├── art.js              → arte procedural (Canvas 2D)
-    ├── audio.js            → sonido procedural (Web Audio)
+    ├── audio.js            → sonido procedural (Web Audio) y control del soundtrack
+    ├── musica/umbral.mp3   → soundtrack
     └── lib/phaser.min.js   → copia local de Phaser 4.2.1
 ```
 

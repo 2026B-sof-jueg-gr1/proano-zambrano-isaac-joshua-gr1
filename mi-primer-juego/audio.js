@@ -225,13 +225,77 @@
             this.master.gain.setTargetAtTime(on ? 0.35 : 0.9, t, on ? 0.2 : 0.8);
         },
 
-        /** Acorde final que crece lentamente. */
+        /* ------------------------- música (MP3) -------------------------
+         * Una sola pista (musica/umbral.mp3) usada en momentos concretos.
+         * Siempre en bucle. Con `muffled` suena apagada, "desde otra habitación".
+         * En file:// el navegador no deja pasar el audio por Web Audio, así que
+         * ahí se controla solo el volumen del elemento (sin efecto apagado).
+         */
+        music: null,
+        _musicSetup() {
+            if (this.music) return this.music;
+            const el = new Audio('musica/umbral.mp3?v=1');
+            el.loop = true; el.preload = 'auto';
+            const m = this.music = { el, g: null, lp: null, vol: 0, failed: false, timer: null };
+            el.addEventListener('error', () => { m.failed = true; });
+            if (this.ctx && location.protocol !== 'file:') {
+                const src = this.ctx.createMediaElementSource(el);
+                m.lp = this.ctx.createBiquadFilter(); m.lp.type = 'lowpass'; m.lp.frequency.value = 20000; m.lp.Q.value = 0.5;
+                m.g = this.ctx.createGain(); m.g.gain.value = 0;
+                src.connect(m.lp).connect(m.g).connect(this.master);
+            } else el.volume = 0;
+            return m;
+        },
+        /** Lleva el volumen de la música a `v` en `secs` segundos. */
+        _musicRamp(v, secs) {
+            const m = this.music; if (!m) return;
+            m.vol = v;
+            if (m.g) {
+                const t = this.ctx.currentTime, gn = m.g.gain;
+                gn.cancelScheduledValues(t); gn.setValueAtTime(gn.value, t);
+                gn.linearRampToValueAtTime(v, t + Math.max(0.02, secs));
+            } else {
+                clearInterval(m.timer);
+                const from = m.el.volume, steps = Math.max(1, Math.round(secs * 20)); let i = 0;
+                m.timer = setInterval(() => {
+                    i++; m.el.volume = Math.min(1, Math.max(0, from + (v - from) * i / steps));
+                    if (i >= steps) clearInterval(m.timer);
+                }, 50);
+            }
+        },
+        playMusic({ volume = 0.7, fade = 2, muffled = false, restart = false } = {}) {
+            if (!this.ctx) return;
+            const m = this._musicSetup();
+            clearTimeout(m.stopT);
+            if (restart) { try { m.el.currentTime = 0; } catch (e) {} }
+            if (m.el.paused) m.el.play().catch(() => { m.failed = true; });
+            m.el.muted = this.muted && !m.g;
+            this._musicRamp(volume, fade);
+            if (m.lp) m.lp.frequency.setTargetAtTime(muffled ? 650 : 20000, this.ctx.currentTime, Math.max(0.05, fade / 3));
+        },
+        /** Ajuste continuo (p. ej. según la distancia del personaje). */
+        setMusicVolume(v, secs = 0.25) {
+            const m = this.music; if (!m || m.el.paused) return;
+            if (Math.abs(v - m.vol) > 0.005) this._musicRamp(v, secs);
+        },
+        stopMusic(fade = 2) {
+            const m = this.music; if (!m || m.el.paused) return;
+            this._musicRamp(0, fade);
+            clearTimeout(m.stopT);
+            m.stopT = setTimeout(() => m.el.pause(), fade * 1000 + 100);
+        },
+        musicPlaying() { return !!(this.music && !this.music.el.paused && !this.music.failed); },
+
+        /** Final: vuelve el soundtrack completo. Si el MP3 no carga, suena el acorde sintetizado. */
         ending() {
-            const chord = [220, 277.2, 329.6, 440, 554.4];
-            chord.forEach((f, i) => {
-                this._tone({ freq: f, dur: 9, gain: 0.03, attack: 3 + i * 0.4, wet: 1, detune: -6 });
-                this._tone({ freq: f, dur: 9, gain: 0.03, attack: 3 + i * 0.4, wet: 1, detune: 6 });
-            });
+            this.playMusic({ volume: 0.85, fade: 5, restart: true });
+            if (!this.music || this.music.failed) {
+                const chord = [220, 277.2, 329.6, 440, 554.4];
+                chord.forEach((f, i) => {
+                    this._tone({ freq: f, dur: 9, gain: 0.03, attack: 3 + i * 0.4, wet: 1, detune: -6 });
+                    this._tone({ freq: f, dur: 9, gain: 0.03, attack: 3 + i * 0.4, wet: 1, detune: 6 });
+                });
+            }
             if (this.ambGain) this.ambGain.gain.setTargetAtTime(0.05, this.ctx.currentTime, 2);
         },
         resetAmbience() {
@@ -241,6 +305,7 @@
         toggleMute() {
             this.muted = !this.muted;
             if (this.ctx) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.9, this.ctx.currentTime, 0.1);
+            if (this.music && !this.music.g) this.music.el.muted = this.muted;
             return this.muted;
         }
     };
