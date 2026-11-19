@@ -191,6 +191,11 @@
             });
             this._noise({ dur: 0.8, type: 'bandpass', freq: 3000, q: 3, gain: 0.08, wet: 0.7 });
         },
+        /** Reloj de la habitación (tic / tac). */
+        clock(tock = false) {
+            this._noise({ dur: 0.035, type: 'bandpass', freq: tock ? 1700 : 2300, q: 5, gain: 0.07, wet: 0.5 });
+            this._tone({ freq: tock ? 900 : 1150, dur: 0.05, gain: 0.008, wet: 0.4 });
+        },
         tick() { this._noise({ dur: 0.025, type: 'highpass', freq: 3500, gain: 0.05, wet: 0.3 }); },
         web() { this._noise({ dur: 0.22, type: 'bandpass', freq: 2400, q: 2, gain: 0.07, attack: 0.04, sweepTo: 1200, wet: 0.4 }); },
         effort() { this._noise({ dur: 0.25, type: 'bandpass', freq: 500, q: 1.5, gain: 0.04, attack: 0.05, wet: 0.2 }); },

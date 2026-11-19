@@ -12,7 +12,7 @@ Plataformero atmosférico en blanco y negro hecho con **Phaser 4**, desarrollado
 
 ## El juego
 
-Un niño encapuchado despierta solo en un bosque cubierto de niebla. Para avanzar tiene que sobrevivir a trampas para osos, fosos con estacas, mazas que se balancean, un estanque y una roca que lo persigue, hasta llegar a la luz.
+De noche, en su habitación, un niño se hunde en sus pensamientos y despierta en un bosque cubierto de niebla: su propia mente. Para volver tiene que sobrevivir a trampas para osos, fosos con estacas, mazas que se balancean, un estanque, una roca que lo persigue y una araña, hasta llegar a la luz. En la esquina del cuarto brilla el bastón de su abuelo. La historia completa está en [HISTORIA.md](HISTORIA.md).
 
 El estilo visual está inspirado en los plataformeros de silueta en blanco y negro como *LIMBO* (Playdead). El personaje, el nivel, el arte y el sonido son originales y no usan ningún recurso de ese juego.
 

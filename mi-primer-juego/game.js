@@ -95,6 +95,19 @@
     // Soundtrack (musica/umbral.mp3): volumen al empezar y tramo en el que se apaga al hundirse
     const MUSIC = { introVol: 0.75, fadeFrom: 700, fadeTo: 1700 };
 
+    // Habitación: zoom inicial y las dos poses del niño (coordenadas locales, cama en y = 0)
+    const ROOM_ZOOM = 1.8;
+    const ROOM_SIT = {
+        hip: [6, -4], neck: [2, -23], head: [-6, -31],
+        elbow: [-4, -12], hand: [-10, -6], elbow2: [-1, -13], hand2: [-7, -7],
+        knee: [-9, -4], foot: [-12, 10], knee2: [-6, -5], foot2: [-8, 10]
+    };
+    const ROOM_LIE = {
+        hip: [50, -9], neck: [68, -12], head: [80, -19],
+        elbow: [60, -6], hand: [70, -10], elbow2: [62, -8], hand2: [72, -12],
+        knee: [37, -15], foot: [24, -8], knee2: [39, -13], foot2: [26, -7]
+    };
+
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -132,6 +145,9 @@
             add('mote', ART.dot(8, 255));
             add('dust', ART.dot(16, 40));
             add('shard', ART.shard());
+            add('roomBg', ART.roomBg());
+            add('roomBed', ART.roomBed());
+            add('cane', ART.cane());
             ART.levelChunks(LEVEL, 1024).forEach((ch, i) => add('chunk' + i, ch.canvas));
         }
 
@@ -139,6 +155,7 @@
             const L = LEVEL;
             this.t = 0;
             this.state = 'title';
+            this.roomActive = false;
             this.physics.world.gravity.y = P.gravity;
             this.physics.world.setBounds(0, -400, L.width, L.height + 400);
 
@@ -199,7 +216,7 @@
             if (DEBUG) this.physics.world.createDebugGraphic();
 
             if (this.skipTitle) this.beginPlay(true);
-            else this.showTitle();
+            else { this.createRoom(); this.showTitle(); }
             cam.fadeIn(1800, 0, 0, 0);
             window.__umbral = this;      // útil para pruebas automáticas
         }
@@ -293,13 +310,13 @@
         createUI() {
             const serif = '"Cormorant Garamond", Georgia, serif';
             this.title = this.add.text(VIEW_W / 2, VIEW_H * 0.3, 'UMBRAL', {
-                fontFamily: serif, fontSize: '132px', fontStyle: '300', color: '#0b0b0b'
+                fontFamily: serif, fontSize: '132px', fontStyle: '300', color: '#d4d4d4'
             }).setOrigin(0.5).setScrollFactor(0).setDepth(30).setLetterSpacing(38).setAlpha(0);
             this.subtitle = this.add.text(VIEW_W / 2, VIEW_H * 0.3 + 92, this.isTouch ? 'toca para empezar' : 'pulsa cualquier tecla', {
-                fontFamily: serif, fontSize: '26px', fontStyle: 'italic', color: '#1a1a1a'
+                fontFamily: serif, fontSize: '26px', fontStyle: 'italic', color: '#b8b8b8'
             }).setOrigin(0.5).setScrollFactor(0).setDepth(30).setAlpha(0);
             this.credits = this.add.text(VIEW_W - 28, VIEW_H - 24, 'M  silencio     R  reintentar', {
-                fontFamily: serif, fontSize: '18px', color: '#222'
+                fontFamily: serif, fontSize: '18px', color: '#8a8a8a'
             }).setOrigin(1, 1).setScrollFactor(0).setDepth(30).setAlpha(0);
             this.toastText = this.add.text(28, VIEW_H - 24, '', {
                 fontFamily: serif, fontSize: '20px', fontStyle: 'italic', color: '#ddd'
@@ -323,10 +340,10 @@
         anyInput() {
             SFX.init();
             if (this.state === 'title' && this.t > 0.6) {
-                // el soundtrack es "la realidad": suena al empezar y se apaga al adentrarse en el bosque
+                // el soundtrack es "la realidad": suena en la habitación y se apaga al adentrarse en el bosque
                 SFX.playMusic({ volume: MUSIC.introVol, fade: 1.5, restart: true });
                 this.introMusic = true;
-                this.beginPlay(false);
+                this.startRoomIntro();
             } else if (this.state === 'credits' && this.creditsReady) {
                 this.state = 'leaving';
                 SFX.stopMusic(1.2);
@@ -346,6 +363,117 @@
             });
             this.tweens.add({ targets: this.cameras.main.followOffset, x: 0, y: CAM_OY, duration: 3000, ease: 'Sine.easeInOut' });
             if (instant) this.wake = 1;
+        }
+
+        /* =================================================================
+         * 2b. LA HABITACIÓN
+         *   El juego empieza de noche en el cuarto del niño, con el soundtrack.
+         *   Al pulsar una tecla se tumba y "se hunde": las paredes se estiran
+         *   como troncos, todo se oscurece, la niebla sube y aparece tumbado
+         *   en el bosque. El bastón del abuelo brilla en la esquina, pero el
+         *   niño no se lo lleva.
+         * ================================================================= */
+        createRoom() {
+            const A = ART, R = A.ROOM, B = A.BED, C = A.CANE;
+            const room = this.room = this.add.container(VIEW_W * 0.42, VIEW_H * 0.7)
+                .setScrollFactor(0).setDepth(25).setScale(ROOM_ZOOM);
+            const bg = this.add.image(0, R.floor, 'roomBg').setScale(0.5)
+                .setOrigin(R.ox / R.w, (R.oy + R.floor) / R.h);              // origen en el suelo: al estirarse crece hacia arriba
+            const winGlow = this.add.image(-200, -160, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(1.7).setAlpha(0.22);
+            const bed = this.add.image(0, 0, 'roomBed').setScale(0.5).setOrigin(B.ox / B.w, B.oy / B.h);
+            const kid = this.add.graphics();
+            const cane = this.add.image(178, R.floor, 'cane').setScale(0.5).setOrigin(C.ox / C.w, C.oy / C.h).setRotation(-0.12);
+            const caneGlow = this.add.image(176, -18, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0.2);
+            const fog = this.add.image(0, 160, 'fog2').setScale(0.5).setAlpha(0);
+            const dark = this.add.rectangle(-3000, -2000, 6000, 4000, 0x000000).setOrigin(0).setAlpha(0);
+            room.add([bg, winGlow, bed, kid, cane, caneGlow, fog, dark]);
+            this.roomParts = { bg, winGlow, bed, kid, cane, caneGlow, fog, dark };
+            this.roomPose = 0;                  // 0 = sentado, 1 = tumbado
+            this.roomCaneGlow = 0.2;
+            this.roomActive = true;
+        }
+
+        startRoomIntro() {
+            this.state = 'intro';
+            const P = this.roomParts, room = this.room, tw = (cfg) => this.tweens.add(cfg);
+            this.tweens.killTweensOf([this.title, this.subtitle, this.credits]);
+            tw({ targets: [this.title, this.subtitle, this.credits], alpha: 0, duration: 1400 });
+
+            // el reloj: cada vez más lento hasta que se apaga
+            [0.3, 1.3, 2.35, 3.5, 4.8, 6.4].forEach((s, i) => this.time.delayedCall(s * 1000, () => SFX.clock(i % 2 === 1)));
+
+            // se tumba en la cama
+            tw({ targets: this, roomPose: 1, duration: 1900, delay: 700, ease: 'Sine.easeInOut' });
+
+            // se hunde
+            this.time.delayedCall(2900, () => {
+                const cam = this.cameras.main, b = this.player.body;
+                // posición en pantalla del niño tumbado en el bosque, para que la habitación "caiga" justo ahí
+                const tx = b.center.x - cam.scrollX - 33, ty = b.bottom - cam.scrollY - 10;
+                tw({ targets: room, scale: 1, x: tx, y: ty, duration: 4600, ease: 'Sine.easeInOut' });
+                tw({ targets: P.bg, scaleY: 0.85, duration: 4600, ease: 'Sine.easeIn' });   // las paredes se estiran como troncos
+                tw({ targets: [P.bed, P.kid], y: 18, duration: 3600, ease: 'Sine.easeIn' });
+                tw({ targets: P.dark, alpha: 0.6, duration: 3800 });
+                tw({ targets: P.fog, alpha: 0.65, y: -40, duration: 4200, ease: 'Sine.easeOut' });
+                tw({ targets: P.winGlow, alpha: 0.03, duration: 3000 });
+                // el bastón brilla una última vez… y se queda en la habitación
+                tw({ targets: this, roomCaneGlow: 0.6, duration: 900, yoyo: true, hold: 300, onComplete: () => {
+                    tw({ targets: this, roomCaneGlow: 0, duration: 1600 });
+                } });
+            });
+            this.time.delayedCall(5200, () => {
+                tw({ targets: room, alpha: 0, duration: 2600, ease: 'Sine.easeIn', onComplete: () => {
+                    room.destroy(); this.room = null; this.roomActive = false;
+                    this.beginPlay(false);
+                } });
+            });
+        }
+
+        updateRoom(dt) {
+            const P = this.roomParts;
+            P.caneGlow.setAlpha(this.roomCaneGlow * (0.85 + 0.15 * Math.sin(this.t * 2.1)));
+            P.cane.setAlpha(0.75 + this.roomCaneGlow * 0.4);
+            this.drawRoomKid(P.kid, this.roomPose);
+        }
+
+        /** El niño en la habitación: sentado al borde de la cama, cabizbajo → tumbado y encogido. */
+        drawRoomKid(g, k) {
+            g.clear();
+            const e = k, br = Math.sin(this.t * 1.7) * 0.7 * (1 - k * 0.6);          // respiración
+            const J = {};
+            Object.keys(ROOM_SIT).forEach(n => {
+                const a = ROOM_SIT[n], b = ROOM_LIE[n];
+                J[n] = [lerp(a[0], b[0], e), lerp(a[1], b[1], e)];
+            });
+            ['neck', 'head', 'elbow', 'hand', 'elbow2', 'hand2'].forEach(n => { J[n][1] += br; });
+            const th = lerp(-0.45, 1.5, e);                    // giro de la cabeza
+            const cs = Math.cos(th), sn = Math.sin(th);
+            const H = (x, y) => [J.head[0] + (-x) * cs - y * sn, J.head[1] + (-x) * sn + y * cs];   // mira a la izquierda
+            const C = 0x020202;
+            const limb = (a, b, w) => { g.lineStyle(w, C, 1); g.lineBetween(a[0], a[1], b[0], b[1]); g.fillStyle(C, 1); g.fillCircle(b[0], b[1], w / 2); };
+
+            // pierna y brazo de atrás
+            limb(J.hip, J.knee2, 5.5); limb(J.knee2, J.foot2, 5);
+            limb(J.neck, J.elbow2, 4); limb(J.elbow2, J.hand2, 3.6);
+            // bufanda
+            const s1 = [J.neck[0] + 7, J.neck[1] + 5 + Math.sin(this.t * 1.3)], s2 = [s1[0] + 6, s1[1] + 8 - e * 6];
+            limb(J.neck, s1, 4.5); limb(s1, s2, 3);
+            // torso
+            const dx = J.neck[0] - J.hip[0], dy = J.neck[1] - J.hip[1], d = Math.hypot(dx, dy) || 1;
+            const nx = -dy / d, ny = dx / d;
+            g.fillStyle(C, 1);
+            g.fillPoints([
+                { x: J.hip[0] + nx * 7, y: J.hip[1] + ny * 7 }, { x: J.neck[0] + nx * 4.5, y: J.neck[1] + ny * 4.5 },
+                { x: J.neck[0] - nx * 4.5, y: J.neck[1] - ny * 4.5 }, { x: J.hip[0] - nx * 6.5, y: J.hip[1] - ny * 6.5 }
+            ], true);
+            // cabeza con capucha
+            g.fillCircle(J.head[0], J.head[1], 10.5);
+            const h1 = H(-5, -9), h2 = H(-19, 4), h3 = H(-3, 9), nose = H(10.5, 1);
+            g.fillTriangle(h1[0], h1[1], h2[0], h2[1], h3[0], h3[1]);
+            g.fillCircle(nose[0], nose[1], 2);
+            // pierna y brazo de delante
+            limb(J.hip, J.knee, 5.5); limb(J.knee, J.foot, 5);
+            limb(J.neck, J.elbow, 4); limb(J.elbow, J.hand, 3.6);
         }
 
         /* =================================================================
@@ -1333,6 +1461,7 @@
             this.t += dt;
             const cam = this.cameras.main;
 
+            if (this.roomActive) this.updateRoom(dt);
             if (this.state !== 'dead') this.updatePlayer(dt);
             else this.player.body.setVelocityX(this.player.body.velocity.x * 0.92);
             this.updateHazards(dt);

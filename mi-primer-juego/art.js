@@ -436,5 +436,172 @@
         return chunks;
     }
 
-    window.ART = { rng, sky, forestLayer, fog, lightRay, glow, grain, foreground, vignette, crate, trap, mace, boulder, dot, shard, levelChunks };
+    /* =====================================================================
+     *  LA HABITACIÓN (inicio del juego)
+     *  Coordenadas locales: (0,0) es el borde de la cama donde se sienta el
+     *  niño; el suelo está en y = 28. Se dibuja al doble de resolución porque
+     *  en el juego se ve ampliada.
+     * ===================================================================== */
+    const ROOM = { ox: 470, oy: 380, w: 1060, h: 600, floor: 28 };
+
+    function roomBg() {
+        const S = 2, { ox: OX, oy: OY, w: W, h: H, floor: F } = ROOM;
+        const [c, g] = canvas(W * S, H * S);
+        g.scale(S, S); g.translate(OX, OY);
+        const line = (x1, y1, x2, y2) => { g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+        const black = '#070707';
+
+        // pared, luz de luna y papel pintado
+        const wg = g.createLinearGradient(0, -OY, 0, F);
+        wg.addColorStop(0, gray(50)); wg.addColorStop(1, gray(84));
+        g.fillStyle = wg; g.fillRect(-OX, -OY, W, OY + F);
+        const mg = g.createRadialGradient(-200, -160, 10, -200, -160, 360);
+        mg.addColorStop(0, gray(220, 0.22)); mg.addColorStop(1, gray(220, 0));
+        g.fillStyle = mg; g.fillRect(-OX, -OY, W, OY + F);
+        g.fillStyle = gray(0, 0.045);
+        for (let x = -OX; x < W - OX; x += 24) g.fillRect(x, -OY, 9, OY + F);
+
+        // suelo de madera
+        const fl = g.createLinearGradient(0, F, 0, H - OY);
+        fl.addColorStop(0, gray(22)); fl.addColorStop(1, gray(4));
+        g.fillStyle = fl; g.fillRect(-OX, F, W, H - OY - F);
+        g.strokeStyle = gray(32); g.lineWidth = 1;
+        [36, 47, 62, 82, 108, 140].forEach(y => line(-OX, y, W - OX, y));
+
+        // luz de la ventana sobre el suelo
+        g.fillStyle = gray(230, 0.045);
+        g.beginPath(); g.moveTo(-260, -90); g.lineTo(-140, -90); g.lineTo(-60, 80); g.lineTo(-200, 80); g.closePath(); g.fill();
+        g.fillStyle = gray(210, 0.1);
+        g.beginPath(); g.moveTo(-235, F); g.lineTo(-120, F); g.lineTo(-60, 80); g.lineTo(-200, 80); g.closePath(); g.fill();
+        g.fillStyle = '#080808'; g.fillRect(-OX, F - 7, W, 8);                      // rodapié
+
+        // ventana con la luna y ramas fuera (anticipan el bosque)
+        const wx = -260, wy = -230, ww = 120, wh = 140;
+        const gl = g.createLinearGradient(0, wy, 0, wy + wh);
+        gl.addColorStop(0, gray(205)); gl.addColorStop(1, gray(160));
+        g.fillStyle = gl; g.fillRect(wx, wy, ww, wh);
+        g.fillStyle = gray(248); g.beginPath(); g.arc(wx + 84, wy + 32, 11, 0, Math.PI * 2); g.fill();
+        g.save(); g.beginPath(); g.rect(wx, wy, ww, wh); g.clip();
+        g.fillStyle = gray(72); g.strokeStyle = gray(72); g.lineCap = 'round';
+        const r = rng(321);
+        trunk(g, r, wx + 20, wy + wh + 20, wy - 40, 10, true);
+        branch(g, r, wx + ww, wy + 60, -1, 3, 70, 3);
+        g.restore();
+        g.strokeStyle = black; g.lineWidth = 8; g.strokeRect(wx, wy, ww, wh);
+        g.lineWidth = 4; line(wx + ww / 2, wy, wx + ww / 2, wy + wh); line(wx, wy + wh * 0.45, wx + ww, wy + wh * 0.45);
+        g.fillStyle = black; g.fillRect(wx - 14, wy + wh + 2, ww + 28, 7);
+
+        // cortinas
+        g.lineWidth = 3; line(-294, -246, -106, -246);
+        const curtain = m => {                       // m = 1 izquierda, -1 derecha (espejo sobre x = -200)
+            const X = x => m > 0 ? x : -400 - x;
+            g.beginPath(); g.moveTo(X(-294), -246); g.lineTo(X(-258), -246);
+            g.quadraticCurveTo(X(-248), -160, X(-266), -120);
+            g.quadraticCurveTo(X(-274), -90, X(-262), -52);
+            g.lineTo(X(-298), -52); g.closePath(); g.fill();
+            g.strokeStyle = gray(20); g.lineWidth = 1;
+            line(X(-284), -244, X(-286), -56); line(X(-274), -244, X(-280), -56);
+            g.strokeStyle = black;
+        };
+        curtain(1); curtain(-1);
+
+        // armario (a la izquierda, medio fuera de cuadro)
+        g.fillStyle = black; g.fillRect(-345, -215, 62, 215 + F);
+        g.strokeStyle = gray(22); g.lineWidth = 1.2; line(-314, -205, -314, F - 6);
+        g.fillStyle = gray(55); g.fillRect(-320, -100, 3, 10); g.fillRect(-310, -100, 3, 10);
+
+        // baúl de juguetes y una pelota
+        g.fillStyle = black; g.fillRect(-255, 2, 72, F - 2);
+        g.strokeStyle = gray(24); line(-253, 9, -185, 9);
+        g.fillStyle = '#0b0b0b'; g.beginPath(); g.arc(-118, F - 7, 7, 0, Math.PI * 2); g.fill();
+
+        // foto del abuelo con el niño, sobre la cama
+        g.fillStyle = black; g.fillRect(38, -102, 44, 50);
+        g.fillStyle = gray(140); g.fillRect(42, -98, 36, 42);
+        g.strokeStyle = '#030303'; g.fillStyle = '#030303'; g.lineCap = 'round';
+        g.beginPath(); g.arc(64, -86, 3.6, 0, Math.PI * 2); g.fill();          // abuelo
+        g.lineWidth = 5; line(64, -81, 62, -68);
+        g.lineWidth = 2.6; line(62, -68, 60, -60); line(62, -68, 65, -60);
+        g.lineWidth = 1.6; line(63, -79, 70, -74); line(70, -76, 71, -60);      // brazo y bastón
+        g.lineWidth = 1.4; line(62, -78, 56, -70);                              // le da la mano al niño
+        g.beginPath(); g.arc(51, -75, 2.9, 0, Math.PI * 2); g.fill();          // niño
+        g.lineWidth = 4; line(51, -71, 51, -65);
+        g.lineWidth = 2.2; line(51, -65, 49, -60); line(51, -65, 53, -60);
+        g.lineCap = 'butt';
+
+        // mesita de noche con lámpara apagada
+        g.fillStyle = black; g.fillRect(118, -2, 42, F + 2);
+        g.strokeStyle = gray(24); g.lineWidth = 1; line(121, 10, 157, 10);
+        g.lineWidth = 2; g.strokeStyle = black; line(139, -2, 139, -22);
+        g.beginPath(); g.moveTo(126, -22); g.lineTo(152, -22); g.lineTo(147, -38); g.lineTo(131, -38); g.closePath(); g.fill();
+
+        // puerta, con la luz del pasillo colándose por debajo
+        g.fillStyle = black; g.fillRect(298, -174, 76, 174 + F);
+        g.strokeStyle = gray(22); g.lineWidth = 1.5;
+        g.strokeRect(309, -162, 54, 78); g.strokeRect(309, -72, 54, 86);
+        g.fillStyle = gray(60); g.beginPath(); g.arc(364, -58, 3, 0, Math.PI * 2); g.fill();
+        g.fillStyle = gray(170, 0.75); g.fillRect(301, F - 2, 70, 2.5);
+        const dl = g.createLinearGradient(0, F, 0, F + 26);
+        dl.addColorStop(0, gray(150, 0.16)); dl.addColorStop(1, gray(150, 0));
+        g.fillStyle = dl; g.fillRect(285, F, 102, 26);
+
+        // bordes difuminados: al alejarse, la habitación se funde con el bosque en vez de verse como un rectángulo
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.globalCompositeOperation = 'destination-in';
+        const fx = g.createLinearGradient(0, 0, W * S, 0);
+        fx.addColorStop(0, 'rgba(0,0,0,0)'); fx.addColorStop(0.12, 'rgba(0,0,0,1)');
+        fx.addColorStop(0.88, 'rgba(0,0,0,1)'); fx.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = fx; g.fillRect(0, 0, W * S, H * S);
+        const fy = g.createLinearGradient(0, 0, 0, H * S);
+        fy.addColorStop(0, 'rgba(0,0,0,0)'); fy.addColorStop(0.12, 'rgba(0,0,0,1)');
+        fy.addColorStop(0.88, 'rgba(0,0,0,1)'); fy.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = fy; g.fillRect(0, 0, W * S, H * S);
+        g.globalCompositeOperation = 'source-over';
+        return c;
+    }
+
+    const BED = { ox: 14, oy: 48, w: 130, h: 80 };
+    function roomBed() {
+        const S = 2, { ox: OX, oy: OY, w: W, h: H } = BED;
+        const [c, g] = canvas(W * S, H * S);
+        g.scale(S, S); g.translate(OX, OY);
+        g.fillStyle = '#060606';
+        g.fillRect(-8, 8, 5, 22); g.fillRect(95, 8, 5, 22);                    // patas
+        g.fillRect(-12, 6, 116, 6);                                             // somier
+        g.fillStyle = gray(30); g.fillRect(-10, -2, 112, 9);                    // colchón
+        g.strokeStyle = gray(70); g.lineWidth = 1;
+        g.beginPath(); g.moveTo(-10, -2); g.lineTo(14, -2); g.stroke();
+        // manta arrugada
+        g.fillStyle = gray(42);
+        g.beginPath(); g.moveTo(14, 12);
+        g.quadraticCurveTo(10, 2, 16, -3);
+        for (let x = 16; x <= 100; x += 7) g.lineTo(x, -4 - Math.sin(x * 0.21) * 1.8);
+        g.lineTo(101, 12); g.closePath(); g.fill();
+        g.strokeStyle = gray(88); g.beginPath(); g.moveTo(16, -3);
+        for (let x = 16; x <= 100; x += 7) g.lineTo(x, -4 - Math.sin(x * 0.21) * 1.8);
+        g.stroke();
+        g.fillStyle = gray(56); g.beginPath(); g.ellipse(84, -7, 15, 6, -0.05, 0, Math.PI * 2); g.fill();   // almohada
+        g.fillStyle = '#070707';                                                // cabecero
+        g.beginPath(); g.moveTo(100, 30); g.lineTo(100, -34);
+        g.quadraticCurveTo(106, -44, 112, -34); g.lineTo(112, 30); g.closePath(); g.fill();
+        return c;
+    }
+
+    /** El bastón del abuelo: claro, para que brille sobre todo lo demás. */
+    const CANE = { ox: 10, oy: 98, w: 26, h: 100 };
+    function cane() {
+        const S = 2, [c, g] = canvas(CANE.w * S, CANE.h * S);
+        g.scale(S, S);
+        g.lineCap = 'round'; g.strokeStyle = gray(228); g.lineWidth = 3.2;
+        g.beginPath(); g.moveTo(10, 97); g.lineTo(11, 14);
+        g.arc(16, 14, 5, Math.PI, Math.PI * 2); g.lineTo(21, 19); g.stroke();
+        g.strokeStyle = gray(150); g.lineWidth = 3.4;
+        g.beginPath(); g.moveTo(10, 97); g.lineTo(10, 92); g.stroke();
+        return c;
+    }
+
+    window.ART = {
+        rng, sky, forestLayer, fog, lightRay, glow, grain, foreground, vignette, crate, trap, mace, boulder, dot, shard, levelChunks,
+        ROOM, BED, CANE, roomBg, roomBed, cane
+    };
 })();
