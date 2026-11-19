@@ -29,7 +29,7 @@
     };
 
     const LEVEL = {
-        width: 9700, height: 820,
+        width: 12900, height: 820,
         solids: [
             { x: -100, y: -400, w: 100, h: 1300, invisible: true },          // muro izquierdo
             { x: 0,    y: 560, w: 1480, h: 300 },                            // A: claro inicial
@@ -42,12 +42,24 @@
             { x: 4880, y: 545, w: 90,   h: 320 },                            //   roca en el agua
             { x: 5120, y: 560, w: 900,  h: 300 },                            // F: carrera
             { x: 6020, y: 800, w: 140,  h: 60, invisible: true },            //   fondo del foso 2
-            { x: 6160, y: 560, w: 3540, h: 300 },                            // G: bosque de la araña y final
-            { x: 9700, y: -400, w: 100, h: 1300, invisible: true }           // muro derecho
+            { x: 6160, y: 560, w: 2990, h: 300 },                            // G: bosque de la araña
+            { x: 9150, y: 800, w: 160,  h: 60, invisible: true },            //   fondo del foso 3 (niebla)
+            { x: 9310, y: 560, w: 740,  h: 300 },                            // H: niebla
+            { x: 10050, y: 800, w: 150, h: 60, invisible: true },            //   fondo del foso 4 (niebla)
+            { x: 10200, y: 560, w: 2700, h: 300 },                           // I: final de la niebla, el ciclo y la luz
+            { x: 12900, y: -400, w: 100, h: 1300, invisible: true }          // muro derecho
         ],
-        spikes:  [{ x: 2200, y: 760, w: 170 }, { x: 6020, y: 760, w: 140 }],
-        pits:    [{ x: 2200, y: 735, w: 170, h: 120 }, { x: 6020, y: 735, w: 140, h: 120, boulderPit: true }],
-        traps:   [{ x: 1150, y: 560 }, { x: 1830, y: 520 }, { x: 5720, y: 560 }, { x: 7290, y: 560, spider: true }],
+        spikes:  [{ x: 2200, y: 760, w: 170 }, { x: 6020, y: 760, w: 140 }, { x: 9150, y: 760, w: 160 }, { x: 10050, y: 760, w: 150 }],
+        pits:    [{ x: 2200, y: 735, w: 170, h: 120 }, { x: 6020, y: 735, w: 140, h: 120, boulderPit: true },
+                  { x: 9150, y: 735, w: 160, h: 120 }, { x: 10050, y: 735, w: 150, h: 120 }],
+        traps:   [{ x: 1150, y: 560 }, { x: 1830, y: 520 }, { x: 5720, y: 560 }, { x: 7290, y: 560, spider: true },
+                  { x: 8980, y: 560 }, { x: 9760, y: 560 }, { x: 10520, y: 560 }],
+        // Raíces con espinas que brotan al acercarse (niebla). Se oyen y asoman antes de salir.
+        roots:   [{ x: 9470, y: 560, w: 70 }, { x: 10740, y: 560, w: 80 }],
+        // La niebla: solo se ve lo que alumbra el palo
+        fog:     { from: 8700, to: 10950 },
+        // El ciclo: al llegar a b vuelves a a. Solo se rompe quedándose quieto en la luz (spot) `needed` segundos
+        loop:    { a: 11000, b: 11900, spot: 11450, wallX: 11960, needed: 2.6 },
         pendulums: [
             { x: 3760, py: 40, len: 260, amp: 1.2, speed: 1.9, phase: 0 },
             { x: 4150, py: 40, len: 260, amp: 1.2, speed: 1.9, phase: 1.3 }
@@ -59,7 +71,8 @@
         checkpoints: [
             { x: 520,  y: 560 }, { x: 2470, y: 540 }, { x: 3470, y: 360 },
             { x: 4470, y: 560 }, { x: 5190, y: 560 }, { x: 6720, y: 560 },
-            { x: 7700, y: 560, requires: 'spiderWounded' }
+            { x: 7700, y: 560, requires: 'spiderWounded' },
+            { x: 8700, y: 560 }, { x: 9330, y: 560 }, { x: 10230, y: 560 }, { x: 11010, y: 560 }
         ],
         // La araña: patas que apuñalan (fase 1) y la emboscada con telaraña (fase 2)
         spider: {
@@ -68,13 +81,17 @@
             plantedLegs: [7505, 7590, 7700, 7830, 7930, 8040],
             cocoonTrigger: 8060, freeHits: 8
         },
-        ending: { x: 9480, y: 360, trigger: 9330 },
+        ending: { x: 12600, y: 360, trigger: 12450 },
         bgTrees: [
             { x: 380, y: 560, w: 58 }, { x: 1330, y: 560, w: 36 }, { x: 1980, y: 520, w: 84 },
             { x: 2560, y: 540, w: 30 }, { x: 3130, y: 540, w: 62 }, { x: 3950, y: 360, w: 44 },
             { x: 4560, y: 560, w: 52 }, { x: 5420, y: 560, w: 92 }, { x: 6400, y: 560, w: 48 },
             { x: 6780, y: 560, w: 30 }, { x: 7120, y: 560, w: 70 }, { x: 7420, y: 560, w: 46 },
-            { x: 8180, y: 560, w: 80 }, { x: 8520, y: 560, w: 40 }, { x: 8900, y: 560, w: 34 }
+            { x: 8180, y: 560, w: 80 }, { x: 8520, y: 560, w: 40 }, { x: 8900, y: 560, w: 34 },
+            { x: 9060, y: 560, w: 44 }, { x: 9400, y: 560, w: 60 }, { x: 9660, y: 560, w: 30 }, { x: 9990, y: 560, w: 52 },
+            { x: 10380, y: 560, w: 36 }, { x: 10860, y: 560, w: 70 },
+            { x: 11120, y: 560, w: 64 }, { x: 11330, y: 560, w: 40 }, { x: 11590, y: 560, w: 82 }, { x: 11800, y: 560, w: 48 },
+            { x: 12180, y: 560, w: 40 }, { x: 12360, y: 560, w: 30 }
         ],
         webs: [
             { x1: 7120, x2: 7420, y: 120, r: 120 }, { x1: 6780, x2: 7120, y: 300, r: 90 },
@@ -90,7 +107,8 @@
         ],
         vines: [
             { x: 760, len: 170 }, { x: 812, len: 120 }, { x: 2700, len: 230 }, { x: 3580, len: 140 },
-            { x: 4300, len: 120 }, { x: 5000, len: 200 }, { x: 5940, len: 160 }
+            { x: 4300, len: 120 }, { x: 5000, len: 200 }, { x: 5940, len: 160 },
+            { x: 9240, len: 210 }, { x: 10120, len: 180 }, { x: 11230, len: 150 }, { x: 11700, len: 240 }
         ],
         hints: [
             { x: 720,  y: 455, text: '←   →' },
@@ -109,8 +127,12 @@
             { x: 6330, y: 560, bush: 'big', music: true, text: 'Caer también puede sonar a risa.\nY al levantarse, siempre había algo dulce.' },
             { x: 6800, y: 560, dark: true, text: 'No todos pudieron salir de aquí.\nAlgunos se quedaron envueltos en sus propios pensamientos.' },
             { x: 8560, y: 560, text: 'Los caminos se hicieron largos.\nLas visitas, cortas.' },
-            { x: 8900, y: 560, text: 'Un día, el camino lo recorrió solo.' },
-            { x: 9200, y: 560, text: 'Me preguntó cuándo volveríamos.\nLe dije que pronto.' }
+            // en la niebla: recuerdos borrosos, que se enfocan al acercarse
+            { x: 8850, y: 560, blur: true, text: 'Hay cosas que ya no recuerdo bien.\nSu voz. El camino de vuelta.' },
+            { x: 9600, y: 560, blur: true, text: 'Un día, el camino lo recorrió solo.' },
+            { x: 10350, y: 560, blur: true, dark: true, text: 'Nadie me dijo que sería la última vez.' },
+            // después de romper el ciclo
+            { x: 12150, y: 560, music: true, text: 'Me preguntó cuándo volveríamos.\nLe dije que pronto.' }
         ],
         // Última línea, sobre la pantalla blanca del final, antes de los créditos
         epitaph: 'Lo que queda de alguien\na veces cabe en una mano.'
@@ -123,8 +145,21 @@
         forest: { vol: 0.55, cutoff: 1100 },       // el bosque, ya con el palo: lejana, pero siempre presente
         memory: { vol: 0.72, cutoff: 3200 },       // junto a un recuerdo: se abre un poco
         big:    { vol: 0.85, cutoff: 8000 },       // el árbol de moras
-        dread:  { vol: 0.16, cutoff: 420 }         // la araña: los pensamientos oscuros la tapan
+        dread:  { vol: 0.16, cutoff: 420 },        // la araña: los pensamientos oscuros la tapan
+        fog:    { vol: 0.32, cutoff: 600 },        // la niebla
+        loop:   { vol: 0.24, cutoff: 480 }         // el ciclo (cada vuelta un poco más lejos)
     };
+
+    // El ciclo: lo que piensa cada vez que vuelve al mismo lugar, y al romperlo
+    const LOOP_TEXTS = [
+        '',
+        'Otra vez aquí.',
+        'Camino y camino,\ny siempre vuelvo al mismo lugar.',
+        'Estas paredes no son de piedra.\nLas levanté yo.',
+        'Quizá no se trata de seguir caminando.',
+        'La luz todavía está ahí.\nQuizá sea la última vez.'
+    ];
+    const LOOP_BREAK = 'Me quedé quieto.\nY por fin, pude recordar.';
 
     // Monólogo interno en la habitación (cada línea se puede adelantar con una tecla)
     const MONOLOGUE = [
@@ -191,6 +226,7 @@
             add('caneDark', ART.cane(false));
             add('bramble', ART.bramble(130, 70, 5, 10));
             add('brambleBig', ART.bramble(300, 150, 9, 40));
+            add('darkness', ART.darkness(1280, 720, 150));
             ART.levelChunks(LEVEL, 1024).forEach((ch, i) => add('chunk' + i, ch.canvas));
         }
 
@@ -244,6 +280,7 @@
             this.createPlayer();
             this.createHazards();
             this.createStory();
+            this.createNight();
             this.createAtmosphere();
             this.createInput();
             this.createUI();
@@ -615,6 +652,10 @@
                 }).setOrigin(0.5).setDepth(13.6).setAlpha(0);
                 // parche de niebla clara detrás del texto: se lee también sobre los troncos
                 o.halo = this.add.image(m.x, m.y - 190, 'glow').setScale(o.txt.width / 70, 1.5).setDepth(13.5).setAlpha(0);
+                o.vis = 0;
+                if (m.blur) o.ghosts = [0, 1].map(() => this.add.text(m.x, m.y - 190, m.text, {
+                    fontFamily: serif, fontStyle: 'italic', fontSize: '27px', color: '#101010', align: 'center', lineSpacing: 6
+                }).setOrigin(0.5).setDepth(13.6).setAlpha(0));
                 return o;
             });
             this.musicSwell = 0;
@@ -652,6 +693,14 @@
             this.dread = lerp(this.dread || 0, spiderNear || this.state === 'cocoon' || this.state === 'grabbed' ? 1 : 0, Math.min(1, dt * 1.5));
             if (this.dread > 0.01) cur = mixT(cur, M.dread, this.dread);
 
+            // la niebla y el ciclo: cada vuelta suena más lejos; en la luz, vuelve
+            if (this.fogK > 0.01) cur = mixT(cur, M.fog, this.fogK * 0.85);
+            if (this.loopK > 0.01) {
+                const L = this.loopBroken ? M.memory : { vol: Math.max(0.1, M.loop.vol - 0.04 * this.loopN), cutoff: M.loop.cutoff };
+                cur = mixT(cur, L, this.loopK);
+            }
+            if (this.loopProgress > 0.01) cur = mixT(cur, M.big, this.loopProgress);
+
             SFX.setMusic(cur.vol, cur.cutoff);
         }
 
@@ -672,7 +721,7 @@
                 const d = Math.abs(px - m.x);
                 if (m.seen && d < activeD) { active = m; activeD = d; }
             });
-            const othersVisible = this.memories.some(m => m !== active && m.txt.alpha > 0.12);
+            const othersVisible = this.memories.some(m => m !== active && m.vis > 0.12);
             this.memories.forEach(m => {
                 const d = Math.abs(px - m.x);
                 if (!m.seen && alive && this.hasStick && d < 150) {
@@ -684,8 +733,15 @@
                     if (m.dark) SFX.creak(); else if (!m.stick) SFX.checkpoint();
                 }
                 const show = m === active && !othersVisible && this.state !== 'credits';
-                m.txt.setAlpha(lerp(m.txt.alpha, show ? 0.85 : 0, show ? 0.03 : 0.08));
-                m.halo.setAlpha(m.txt.alpha * 0.6);
+                m.vis = lerp(m.vis, show ? 0.85 : 0, show ? 0.03 : 0.08);
+                m.halo.setAlpha(m.vis * 0.6);
+                if (m.ghosts) {
+                    // borroso: dos copias desplazadas que se juntan a medida que el niño se acerca
+                    const k = clamp((d - 40) / 210, 0, 1), w = Math.sin(this.t * 1.3 + m.x) * 2;
+                    m.txt.setAlpha(m.vis * (1 - 0.6 * k));
+                    m.ghosts[0].setPosition(m.x - (4 + 16 * k) + w, m.y - 190 - 3 * k).setAlpha(m.vis * 0.45 * k);
+                    m.ghosts[1].setPosition(m.x + (4 + 16 * k) - w, m.y - 190 + 3 * k).setAlpha(m.vis * 0.45 * k);
+                } else m.txt.setAlpha(m.vis);
             });
         }
 
@@ -699,6 +755,168 @@
             this.cameras.main.flash(500, 40, 40, 40);
             SFX.checkpoint();
             this.musicSwell = 1;
+        }
+
+        /* =================================================================
+         * 2d. LA NIEBLA Y EL CICLO
+         *   Niebla: todo se oscurece; solo la luz del palo deja ver las
+         *   trampas, los fosos y las raíces. Los recuerdos llegan borrosos.
+         *   Ciclo: el camino se repite detrás de una muralla de espinas.
+         *   Solo hay una forma de romperlo: dejar de caminar y quedarse
+         *   quieto en la luz, con el palo, hasta poder recordar.
+         * ================================================================= */
+        createNight() {
+            const LP = LEVEL.loop, serif = '"Cormorant Garamond", Georgia, serif';
+            this.darkImg = this.add.image(0, 0, 'darkness').setScrollFactor(0).setDepth(14.5).setAlpha(0);
+            this.darkA = 0; this.fogK = 0; this.loopK = 0;
+
+            // raíces
+            this.rootG = this.add.graphics().setDepth(11.2);
+            this.roots = LEVEL.roots.map(r => ({ ...r, phase: 'idle', t: 0, h: 0 }));
+
+            // el ciclo
+            this.loopN = 0; this.loopBroken = false; this.stillT = 0; this.loopProgress = 0; this.loopFade = 1;
+            this.loopRay = this.add.image(LP.spot, -80, 'ray').setOrigin(0.5, 0).setScale(0.5, 0.8)
+                .setBlendMode(Phaser.BlendModes.ADD).setDepth(14.6).setAlpha(0);
+            this.loopWalls = [
+                this.add.image(LP.wallX, 568, 'brambleBig').setOrigin(0.5, 1).setScale(1.1, 3.4).setDepth(11),
+                this.add.image(LP.wallX + 70, 568, 'brambleBig').setOrigin(0.5, 1).setScale(0.9, 2.7).setDepth(11).setFlipX(true)
+            ];
+            const wz = this.add.zone(LP.wallX + 20, 260, 70, 600);
+            this.physics.add.existing(wz, true);
+            this.loopWallCol = this.physics.add.collider(this.player, wz);
+            this.loopText = this.add.text(LP.a + 330, 360, '', {
+                fontFamily: serif, fontStyle: 'italic', fontSize: '28px', color: '#cfcfcf', align: 'center', lineSpacing: 6
+            }).setOrigin(0.5).setDepth(14.7).setAlpha(0);
+        }
+
+        resetRoots() { this.roots.forEach(r => { r.phase = 'idle'; r.t = 0; r.h = 0; }); }
+
+        updateNight(dt) {
+            const b = this.player.body, px = b.center.x, F = LEVEL.fog, LP = LEVEL.loop;
+            const alive = this.state === 'play';
+            const ramp = (x, a, c) => clamp((x - a) / (c - a), 0, 1);
+
+            /* ---- oscuridad: solo se ve lo que alumbra el palo ---- */
+            this.fogK = ramp(px, F.from, F.from + 260) * (1 - ramp(px, F.to - 220, F.to));
+            this.loopK = ramp(px, LP.a - 160, LP.a) * (1 - ramp(px, LP.wallX, LP.wallX + 160));
+            const loopLevel = Math.min(0.9, 0.55 + 0.09 * this.loopN) * this.loopFade;
+            const target = Math.max(this.fogK * 0.95, this.loopK * loopLevel);
+            this.darkA = lerp(this.darkA, target, Math.min(1, dt * 3));
+            const cam = this.cameras.main;
+            const flick = 1 + Math.sin(this.t * 2.3) * 0.04 + (Math.random() < 0.03 ? -0.12 : 0);
+            const radius = lerp(230, 320, this.loopK) * flick * (1 + this.loopProgress * 0.6);
+            this.darkImg.setPosition(b.center.x - cam.scrollX, b.center.y - 12 - cam.scrollY)
+                .setScale(radius / 150).setAlpha(this.darkA).setVisible(this.darkA > 0.01);
+            this.stickBoost = Math.max(this.fogK * 0.5, this.loopProgress);
+
+            /* ---- raíces que brotan del suelo ---- */
+            const g = this.rootG; g.clear();
+            this.roots.forEach(r => {
+                r.t += dt;
+                if (r.phase === 'idle') {
+                    if (alive && px > r.x - 160 && px < r.x + r.w / 2 + 10) { r.phase = 'warn'; r.t = 0; SFX.rootWarn(); }
+                } else if (r.phase === 'warn') {
+                    if (Math.random() < 0.3) this.dustFx.explode(1, r.x + (Math.random() - 0.5) * r.w, r.y);
+                    if (r.t > 0.55) {
+                        r.phase = 'up'; r.t = 0; SFX.rootBurst();
+                        this.cameras.main.shake(160, 0.006);
+                        this.dustFx.explode(14, r.x, r.y);
+                    }
+                } else if (r.phase === 'up') {
+                    r.h = Math.min(100, r.h + dt * 1500);
+                    if (r.t > 1.1) { r.phase = 'down'; r.t = 0; }
+                } else if (r.phase === 'down') {
+                    r.h = Math.max(0, r.h - dt * 190);
+                    if (r.h <= 0) { r.phase = 'rest'; r.t = 0; }
+                } else if (r.phase === 'rest' && r.t > 0.9) r.phase = 'idle';
+
+                if (alive && r.h > 25 && Math.abs(px - r.x) < r.w / 2 + 6 && b.bottom > r.y - r.h + 8) this.kill('roots');
+                this.drawRoot(g, r);
+            });
+
+            /* ---- el ciclo ---- */
+            if (!this.loopBroken) {
+                if (alive && px > LP.b && !this.blinking) this.loopTeleport();
+                const inLight = alive && this.onGround && Math.abs(px - LP.spot) < 50 && Math.abs(b.velocity.x) < 15;
+                this.stillT = inLight ? this.stillT + dt : Math.max(0, this.stillT - dt * 1.5);
+                this.loopProgress = clamp(this.stillT / LP.needed, 0, 1);
+                if (inLight && this.stillT > 0.2 && !this.lightHum) { this.lightHum = true; SFX.checkpoint(); }
+                if (!inLight && this.stillT <= 0) this.lightHum = false;
+                if (this.loopProgress >= 1) this.breakLoop();
+            } else this.loopProgress = Math.max(0, this.loopProgress - dt * 0.4);
+
+            const base = Math.max(0.14, 0.42 - 0.07 * this.loopN);
+            const rayA = this.loopBroken ? 0 : (base + this.loopProgress * 0.5) * (0.85 + 0.15 * Math.sin(this.t * 1.7));
+            this.loopRay.setAlpha(lerp(this.loopRay.alpha, rayA * clamp(this.loopK * 1.5, 0, 1), 0.08));
+
+            const showLoopText = (this.loopBroken ? Math.abs(px - LP.spot) < 380 : this.loopN > 0 && px > LP.a - 50 && px < LP.b + 50);
+            this.loopText.setAlpha(lerp(this.loopText.alpha, showLoopText && this.loopText.text ? 0.85 : 0, 0.04));
+            const tc = this.darkA > 0.4 ? '#d0d0d0' : '#121212';         // claro sobre la oscuridad, oscuro sobre la niebla
+            if (this.loopText.style.color !== tc) this.loopText.setColor(tc);
+        }
+
+        drawRoot(g, r) {
+            const cam = this.cameras.main;
+            if (r.x < cam.scrollX - 200 || r.x > cam.scrollX + VIEW_W + 200) return;
+            const C = 0x030303, n = 5;
+            if (r.phase === 'warn') {
+                // la tierra se agrieta y asoman las puntas
+                g.lineStyle(1.5, C, 1);
+                for (let i = 0; i < n; i++) {
+                    const x = r.x - r.w / 2 + (i + 0.5) * r.w / n, tip = 5 + Math.abs(Math.sin(this.t * 38 + i)) * 5;
+                    g.fillStyle(C, 1); g.fillTriangle(x - 3, r.y + 1, x + 3, r.y + 1, x + Math.sin(i) * 2, r.y - tip);
+                }
+            }
+            if (r.h <= 0) return;
+            for (let i = 0; i < n; i++) {
+                const x0 = r.x - r.w / 2 + (i + 0.5) * r.w / n;
+                const hh = r.h * (0.6 + 0.4 * Math.abs(Math.sin(i * 2.7 + r.x)));
+                const lean = Math.sin(i * 1.9 + r.x) * 16;
+                const x1 = x0 + lean, y1 = r.y - hh;
+                this.taper(g, x0, r.y + 4, x1, y1, 9, 1.2, C);
+                for (let k = 1; k < 4; k++) {                      // espinas
+                    const t = k / 4, x = lerp(x0, x1, t), y = lerp(r.y, y1, t), s = k % 2 ? 1 : -1;
+                    g.fillStyle(C, 1); g.fillTriangle(x - 2, y, x + 2, y, x + s * 8, y - 5);
+                }
+            }
+        }
+
+        /** El camino se repite: un parpadeo y vuelves al principio del tramo. */
+        loopTeleport() {
+            const LP = LEVEL.loop, D = LP.b - LP.a, cam = this.cameras.main;
+            this.blinking = true;
+            SFX.blink();
+            cam.fadeOut(170, 0, 0, 0);
+            cam.once('camerafadeoutcomplete', () => {
+                const b = this.player.body, vx = b.velocity.x, vy = b.velocity.y;
+                b.reset(b.center.x - D, b.center.y);
+                b.setVelocity(vx, vy);
+                cam.scrollX -= D;
+                this.scarf.forEach(s => { s.x -= D; s.px -= D; });
+                this.loopN++;
+                this.loopText.setText(LOOP_TEXTS[Math.min(this.loopN, LOOP_TEXTS.length - 1)]).setAlpha(0);
+                cam.fadeIn(360, 0, 0, 0);
+                this.blinking = false;
+            });
+        }
+
+        /** Quedarse quieto en la luz: el ciclo se rompe y la muralla cae. */
+        breakLoop() {
+            const LP = LEVEL.loop;
+            this.loopBroken = true;
+            this.loopWallCol.active = false;
+            this.loopWalls.forEach((w, i) => this.tweens.add({
+                targets: w, alpha: 0, scaleY: w.scaleY * 0.25, duration: 1600, delay: i * 200, ease: 'Quad.easeIn'
+            }));
+            this.shardFx.explode(30, LP.wallX, 470);
+            this.dustFx.explode(30, LP.wallX, 560);
+            SFX.breakFree();
+            this.cameras.main.flash(1200, 210, 210, 210);
+            this.cameras.main.shake(500, 0.006);
+            this.tweens.add({ targets: this, loopFade: 0, duration: 2600, ease: 'Sine.easeInOut' });
+            this.musicSwell = 1;
+            this.loopText.setPosition(LP.spot, 340).setText(LOOP_BREAK).setAlpha(0);
         }
 
         /* =================================================================
@@ -1006,7 +1224,9 @@
                 g.lineStyle(4.2, C, 1); g.lineBetween(A[0], A[1], B[0], B[1]);
                 g.lineStyle(1.6, 0xe6e6e6, 0.95); g.lineBetween(A[0], A[1], B[0], B[1]);
                 const M = T(hd[0], hd[1] + 4);
-                this.stickGlow.setPosition(M[0], M[1]).setAlpha(0.2 * (0.85 + 0.15 * Math.sin(this.t * 2.3)));
+                const boost = this.stickBoost || 0;
+                this.stickGlow.setPosition(M[0], M[1]).setScale(0.35 * (1 + 1.6 * boost))
+                    .setAlpha(0.2 * (1 + 2.2 * boost) * (0.85 + 0.15 * Math.sin(this.t * 2.3)));
             }
             if (this.stickGlow) this.stickGlow.setVisible(showStick);
 
@@ -1057,6 +1277,7 @@
         resetHazards(cp) {
             this.traps.forEach(t => { if (t.keep) return; t.shut = false; t.img.setTexture('trapOpen').setPosition(t.x, t.y + 6).setRotation(0); });
             this.resetSpider();
+            if (this.roots) this.resetRoots();
             if (cp.x < LEVEL.box.x + 200) {
                 this.box.setPosition(LEVEL.box.x, LEVEL.box.y - 40);
                 this.box.body.reset(LEVEL.box.x, LEVEL.box.y - 40);
@@ -1230,6 +1451,9 @@
             this.spG = this.add.graphics().setDepth(12.5);
             this.spiderWounded = false;
             this.stabDeaths = 0;
+            // pruebas con ?x= más allá de la araña: se da por superada
+            this.spiderSkipped = START_X !== null && START_X > S.cocoonTrigger;
+            if (this.spiderSkipped) this.spiderWounded = true;
             const bar = this.add.zone(S.barrierX + 15, 280, 30, 560);
             this.physics.add.existing(bar, true);
             this.barrierCollider = this.physics.add.collider(this.player, bar);
@@ -1258,7 +1482,7 @@
             }
             if (this.spiderWounded) legs[0].lost = true;
             this.sp = {
-                mode: this.spiderWounded ? 'away' : 'hunt',
+                mode: this.spiderSkipped ? 'gone' : this.spiderWounded ? 'away' : 'hunt',
                 bx: S.bodyX, by: this.spiderWounded ? -500 : S.bodyY,
                 legs, phase: 'rest', pt: 0, tx: 0, aimFrom: null, mt: 0
             };
@@ -1808,6 +2032,7 @@
             else this.player.body.setVelocityX(this.player.body.velocity.x * 0.92);
             this.updateHazards(dt);
             this.updateStory(dt);
+            this.updateNight(dt);
             this.updateCheckpoints();
             this.updateEnding(dt);
             this.drawPlayer(dt);

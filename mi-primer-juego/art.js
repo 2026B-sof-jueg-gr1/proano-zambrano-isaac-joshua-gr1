@@ -650,8 +650,21 @@
         return c;
     }
 
+    /* ---------- oscuridad de la niebla: negro con un hueco de luz en el centro ---------- */
+    function darkness(w, h, r) {
+        const [c, g] = canvas(w, h);
+        g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+        g.globalCompositeOperation = 'destination-out';
+        const rg = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, r);
+        rg.addColorStop(0, 'rgba(0,0,0,1)'); rg.addColorStop(0.3, 'rgba(0,0,0,0.9)');
+        rg.addColorStop(0.6, 'rgba(0,0,0,0.5)'); rg.addColorStop(0.85, 'rgba(0,0,0,0.15)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = rg; g.fillRect(0, 0, w, h);
+        g.globalCompositeOperation = 'source-over';
+        return c;
+    }
+
     window.ART = {
         rng, sky, forestLayer, fog, lightRay, glow, grain, foreground, vignette, crate, trap, mace, boulder, dot, shard, levelChunks,
-        ROOM, BED, CANE, roomBg, roomBed, cane, bramble
+        ROOM, BED, CANE, roomBg, roomBed, cane, bramble, darkness
     };
 })();

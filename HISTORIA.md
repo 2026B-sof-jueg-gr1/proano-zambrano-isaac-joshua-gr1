@@ -28,6 +28,9 @@ UMBRAL nace de las caminatas por el bosque que el autor hacía de niño con su a
 | **La roca** | La ansiedad que te persigue… y que, cuando la esquivas, se convierte en puente. |
 | **La araña** | El pensamiento más oscuro: te envuelve, te aísla y quiere quedarse contigo. |
 | **Los capullos** | Los que no pudieron salir de sus pensamientos. Cuelgan por todo el bosque de la araña. |
+| **La niebla** | Los recuerdos más duros: no se ve casi nada, solo lo que alumbra lo que él te dejó. |
+| **Las raíces** | Lo que te agarra por debajo cuando avanzas sin mirar. |
+| **El ciclo y la muralla** | Pensar en círculo. La muralla la levanta uno mismo, y solo cae cuando dejas de huir. |
 | **La luz del final** | Despertar. Volver a la habitación. |
 
 ## 2. Estructura
@@ -61,24 +64,31 @@ UMBRAL nace de las caminatas por el bosque que el autor hacía de niño con su a
   | Después de la roca (zarza grande, suena el soundtrack) | Caer también puede sonar a risa. / Y al levantarse, siempre había algo dulce. |
   | Entrada al bosque de la araña (oscuro) | No todos pudieron salir de aquí. / Algunos se quedaron envueltos en sus propios pensamientos. |
   | Después de la araña | Los caminos se hicieron largos. / Las visitas, cortas. |
-  | | Un día, el camino lo recorrió solo. |
-  | Antes de la luz | Me preguntó cuándo volveríamos. / Le dije que pronto. |
+  | Niebla (borroso) | Hay cosas que ya no recuerdo bien. / Su voz. El camino de vuelta. |
+  | Niebla (borroso) | Un día, el camino lo recorrió solo. |
+  | Niebla (borroso, oscuro) | Nadie me dijo que sería la última vez. |
+  | Después de romper el ciclo | Me preguntó cuándo volveríamos. / Le dije que pronto. |
   | Pantalla blanca, antes de los créditos | Lo que queda de alguien / a veces cabe en una mano. |
 
 - Ideas pendientes para el palo:
   - Los **puntos de control** son lugares donde el niño clava el palo (un recuerdo del abuelo). Ahí la música suena **apagada, como si viniera de otra habitación**, durante unos segundos.
   - Al morir, la pantalla no muestra violencia: el niño se desploma y **la luz del palo lo levanta** en el último punto de control.
-  - **Zonas oscuras**: hay tramos donde la niebla se cierra y solo el círculo de luz del palo deja ver las trampas.
   - **El capullo**: al forcejear, el palo brilla cada vez más hasta romper la seda.
 
-### Acto II · (por definir) Lo que se repite
-Un tramo que vuelve sobre sí mismo (el mismo trozo de bosque, cada vez más oscuro) hasta que el jugador hace algo distinto. Representa los pensamientos en bucle.
+### Acto II · La niebla ✅ *implementado* (x 8 700 – 10 950)
+- La niebla se cierra y todo queda a oscuras. **Solo se ve el círculo de luz del palo**, que brilla más que nunca.
+- Dentro hay trampas para osos, dos fosos con estacas y una trampa nueva, las **raíces con espinas**: al acercarse, la tierra cruje y asoman las puntas; medio segundo después brotan de golpe. Hay que pararse y esperar a que se retiren, o saltarlas en el momento justo.
+- Los recuerdos de aquí son los más duros y llegan **borrosos**: dos copias del texto que solo se juntan y se enfocan cuando el niño se acerca.
 
-### Acto final · El umbral
-- El camino se divide:
-  - **Hacia abajo**: fácil, silencioso, sin trampas, cada vez más oscuro. **No es un final**: el bosque se repite, todo se apaga y el palo tira del niño de vuelta a la bifurcación. Nunca se muestra nada explícito.
-  - **Hacia arriba, hacia la luz**: difícil. A medida que se sube, la música vuelve: primero apagada y luego cada vez más clara.
-- No hay un "final malo" que se pueda ganar. La única salida es volver.
+### Acto III · El ciclo ✅ *implementado* (x 11 000 – 11 900)
+Inspirado en el tema de *City Walls* (Twenty One Pilots): unas murallas que uno mismo levanta y un ciclo del que cuesta salir. No usa letra de la canción.
+- El camino termina en una **muralla de espinas**. Al llegar, un parpadeo y el niño vuelve al principio del mismo tramo. Cada vuelta todo está más oscuro, la música más lejos y la luz más débil.
+- Lo que piensa en cada vuelta (`LOOP_TEXTS`): *Otra vez aquí.* → *Camino y camino, y siempre vuelvo al mismo lugar.* → *Estas paredes no son de piedra. Las levanté yo.* → *Quizá no se trata de seguir caminando.* → *La luz todavía está ahí. Quizá sea la última vez.*
+- **Solo hay una forma de romper el ciclo:** dejar de caminar. En medio del tramo cae un rayo de luz; quedarse **quieto** dentro de él unos 2,6 s hace que el palo brille cada vez más y la música vuelva. Si se mueve, se pierde. Al completarse, la muralla cae: *Me quedé quieto. Y por fin, pude recordar.*
+- La luz nunca desaparece del todo, para que el jugador no se quede atrapado, pero cada vuelta es más débil: siempre se siente como la última oportunidad.
+
+### Acto final · La luz
+- Pasada la muralla, el último recuerdo (*Me preguntó cuándo volveríamos. / Le dije que pronto.*) y la luz que lleva a la pantalla blanca y los créditos.
 
 ### Epílogo · Redecorar
 - El niño despierta en su cama. Es de día. **Suena el soundtrack completo, en bucle.**
@@ -100,6 +110,8 @@ La pista **suena todo el tiempo y en bucle**, pero cambia de "lugar" según dón
 | Bosque, con el palo | Baja y lejana |
 | Junto a un recuerdo | Se abre un poco; en el árbol de moras, casi clara |
 | Zona de la araña y capullos | Casi desaparece: los pensamientos oscuros la tapan |
+| Niebla | Lejana y apagada |
+| El ciclo | Cada vuelta más lejos; quieto en la luz, vuelve y se aclara |
 | Al morir | Amortiguada |
 | Final (la luz) y créditos | Vuelve completa desde el principio, en bucle |
 

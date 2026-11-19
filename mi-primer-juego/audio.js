@@ -205,13 +205,64 @@
             this._noise({ dur: 0.12, type: 'highpass', freq: 1800, gain: 0.25, wet: 0.4 });
             this._tone({ freq: 140, to: 45, dur: 0.3, gain: 0.3, wet: 0.3 });
         },
+        /**
+         * La araña: nada de pitidos. Un gruñido grave y áspero que cae,
+         * un siseo largo que se apaga y el chasquido de las mandíbulas.
+         */
         screech() {
-            [0, 0.07, 0.15].forEach((w, i) => {
-                this._tone({ freq: 700 + i * 230, to: 2300 + i * 300, dur: 0.9, type: 'sawtooth', gain: 0.035, attack: 0.05, wet: 0.8, when: w });
-                this._tone({ freq: 2600 - i * 200, to: 900, dur: 0.7, type: 'square', gain: 0.012, wet: 0.8, when: 0.35 + w });
+            if (!this.ctx || this.muted) return;
+            const ctx = this.ctx, t = ctx.currentTime;
+            // gruñido: dos dientes de sierra desafinados, filtrados para que no suenen a "chip"
+            const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 6;
+            lp.frequency.setValueAtTime(520, t); lp.frequency.exponentialRampToValueAtTime(140, t + 1.6);
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(0.16, t + 0.18);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+            // temblor lento en el volumen: respiración entrecortada
+            const tg = ctx.createGain(); tg.gain.value = 1;
+            const trem = ctx.createOscillator(), tremG = ctx.createGain();
+            trem.frequency.value = 11; tremG.gain.value = 0.35; trem.connect(tremG).connect(tg.gain);
+            [-9, 9].forEach(det => {
+                const o = ctx.createOscillator(); o.type = 'sawtooth';
+                o.frequency.setValueAtTime(78, t); o.frequency.exponentialRampToValueAtTime(41, t + 1.7);
+                o.detune.value = det; o.connect(lp); o.start(t); o.stop(t + 1.9);
             });
-            this._noise({ dur: 0.8, type: 'bandpass', freq: 3000, q: 3, gain: 0.08, wet: 0.7 });
+            lp.connect(g).connect(tg); this._out(tg, 0.7);
+            trem.start(t); trem.stop(t + 1.9);
+            // siseo que se aleja
+            this._noise({ dur: 1.5, type: 'bandpass', freq: 2200, q: 1.4, gain: 0.07, attack: 0.25, sweepTo: 700, wet: 0.9 });
+            // mandíbulas
+            for (let i = 0; i < 7; i++)
+                this._noise({ dur: 0.03, type: 'bandpass', freq: 1300 + Math.random() * 700, q: 6, gain: 0.06, when: 0.1 + i * 0.09 + Math.random() * 0.04, wet: 0.4 });
         },
+        /* ---- la niebla y el ciclo ---- */
+        /** Raíces a punto de brotar: la tierra cruje por debajo. */
+        rootWarn() {
+            this._noise({ dur: 0.6, type: 'lowpass', freq: 260, gain: 0.22, attack: 0.1, brown: true, wet: 0.3 });
+            for (let i = 0; i < 6; i++)
+                this._noise({ dur: 0.04, type: 'bandpass', freq: 500 + Math.random() * 500, q: 4, gain: 0.07, when: i * 0.08 + Math.random() * 0.03, wet: 0.3 });
+        },
+        /** Las raíces salen de golpe. */
+        rootBurst() {
+            this._noise({ dur: 0.5, type: 'lowpass', freq: 1100, sweepTo: 160, gain: 0.32, wet: 0.5 });
+            this._tone({ freq: 85, to: 34, dur: 0.45, gain: 0.25, wet: 0.3 });
+            for (let i = 0; i < 5; i++)
+                this._noise({ dur: 0.05, type: 'highpass', freq: 1800, gain: 0.05, when: 0.04 + i * 0.05, wet: 0.4 });
+        },
+        /** El parpadeo del ciclo: vuelves al mismo lugar. */
+        blink() {
+            this._noise({ dur: 0.45, type: 'bandpass', freq: 2600, q: 0.8, sweepTo: 280, gain: 0.07, attack: 0.15, wet: 0.9 });
+            this._tone({ freq: 196, to: 185, dur: 0.9, type: 'sine', gain: 0.03, attack: 0.1, wet: 1 });
+        },
+        /** El ciclo se rompe: la muralla cae y algo se abre. */
+        breakFree() {
+            this._noise({ dur: 1.4, type: 'lowpass', freq: 1500, sweepTo: 120, gain: 0.3, brown: true, wet: 0.7 });
+            this._tone({ freq: 70, to: 30, dur: 1.4, gain: 0.3, wet: 0.6 });
+            [220, 277.2, 329.6, 440].forEach((f, i) =>
+                this._tone({ freq: f, dur: 4.5, gain: 0.025, attack: 1.2 + i * 0.25, wet: 1, when: 0.3 }));
+        },
+
         /** Reloj de la habitación (tic / tac). */
         clock(tock = false) {
             this._noise({ dur: 0.035, type: 'bandpass', freq: tock ? 1700 : 2300, q: 5, gain: 0.07, wet: 0.5 });
