@@ -62,6 +62,7 @@ El estilo visual está inspirado en los plataformeros de silueta en blanco y neg
 Para pruebas, la URL acepta dos parámetros:
 - `?debug` muestra las cajas de colisión.
 - `?x=4000` empieza la partida en esa coordenada.
+- `?epilogo` empieza directamente en la habitación del final.
 
 ## Despliegue
 

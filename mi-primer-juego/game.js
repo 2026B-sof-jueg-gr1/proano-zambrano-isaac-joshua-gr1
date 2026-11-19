@@ -189,12 +189,70 @@
     const lerp = (a, b, t) => a + (b - a) * t;
 
     /* =====================================================================
+     * TEXTO DE HUMO
+     *   Todos los textos de la historia usan este estilo: letras claras,
+     *   dos copias que se deshacen alrededor como humo y una sombra suave
+     *   detrás, para que se lean sobre lo claro y sobre lo oscuro.
+     *   Imita lo que se usaba de Phaser.Text (setText, setAlpha, alpha,
+     *   setPosition, tweens sobre alpha/x/y, destroy...). blurK: 0 nítido, 1 deshecho.
+     * ===================================================================== */
+    class SmokeText {
+        constructor(scene, x, y, text, style = {}) {
+            this.scene = scene; this.x = x; this.y = y; this.alpha = 1; this.blurK = 0.15;
+            this.visible = true; this.seed = Math.random() * 10;
+            const size = parseFloat(style.fontSize) || 28;
+            this.k = size / 28;
+            // dark: letras negras con el mismo efecto, para fondos blancos (la pantalla blanca del final)
+            const dark = !!style.dark;
+            const st = Object.assign({ fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', align: 'center', lineSpacing: 6 },
+                style, { color: dark ? '#121212' : '#ececec' });
+            delete st.dark;
+            this.blob = scene.add.image(x, y, dark ? 'glow' : 'shadeBlob');
+            this.ghosts = [0, 1].map(() => scene.add.text(x, y, text, st).setOrigin(0.5));
+            // un halo oscuro pegado a las letras: se lee también sobre la niebla clara
+            this.main = scene.add.text(x, y, text, st).setOrigin(0.5)
+                .setShadow(0, 0, dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)', 7 * this.k, false, true);
+            this.parts = [this.blob, ...this.ghosts, this.main];
+            this.setDepth(14.7); this._fit();
+            scene.smokes.push(this);
+        }
+        get text() { return this.main.text; }
+        get width() { return this.main.width; }
+        _fit() {
+            this.blob.setScale(Math.max(0.9, this.main.width / 70 + 1.0 * this.k), Math.max(0.8, this.main.height / 45 + 1.0 * this.k));
+        }
+        setText(t) { this.main.setText(t); this.ghosts.forEach(g => g.setText(t)); this._fit(); return this; }
+        setDepth(d) { this.blob.setDepth(d - 0.05); this.ghosts.forEach(g => g.setDepth(d - 0.02)); this.main.setDepth(d); return this; }
+        setScrollFactor(f) { this.parts.forEach(p => p.setScrollFactor(f)); return this; }
+        setAlpha(a) { this.alpha = a; return this; }
+        setPosition(x, y) { this.x = x; if (y !== undefined) this.y = y; return this; }
+        setVisible(v) { this.visible = v; return this; }
+        setOrigin() { return this; }
+        setColor() { return this; }
+        setLetterSpacing() { return this; }
+        destroy() { this.parts.forEach(p => p.destroy()); this.dead = true; }
+        draw(t) {
+            const a = this.visible ? Math.max(0, this.alpha) : 0, k = this.blurK, z = this.k, sd = this.seed;
+            if (a < 0.003 && this._last < 0.003) return;
+            this._last = a;
+            this.main.setPosition(this.x, this.y + Math.sin(t * 0.9 + sd) * 1.5 * z).setAlpha(a * (1 - 0.5 * k));
+            this.ghosts.forEach((g, i) => {
+                const s = i ? 1 : -1;
+                g.setPosition(this.x + (s * (3 + 16 * k) + Math.sin(t * 1.1 + i * 2 + sd) * 3) * z,
+                              this.y + (-4 - 7 * Math.abs(Math.sin(t * 0.6 + i * 1.7 + sd)) + s * 2 * k) * z)
+                 .setAlpha(a * 0.32 * (0.45 + k));
+            });
+            this.blob.setPosition(this.x, this.y).setAlpha(a * 0.85);
+        }
+    }
+
+    /* =====================================================================
      * 2. ESCENA PRINCIPAL
      * ===================================================================== */
     class Umbral extends Phaser.Scene {
         constructor() { super('Umbral'); }
 
-        init(data) { this.skipTitle = !!(data && data.skipTitle) || START_X !== null; }
+        init(data) { this.skipTitle = !!(data && data.skipTitle) || START_X !== null || params.has('epilogo'); }
 
         /** Genera todas las texturas a partir de art.js (solo la primera vez). */
         preload() {
@@ -240,6 +298,7 @@
         create() {
             const L = LEVEL;
             this.t = 0;
+            this.smokes = [];                         // todos los textos de humo (se dibujan en update)
             this.state = 'title';
             this.roomActive = false;
             this.physics.world.gravity.y = P.gravity;
@@ -280,9 +339,9 @@
             });
 
             // textos de ayuda, oscuros, escritos "en el mundo"
-            this.hints = L.hints.map(h => this.add.text(h.x, h.y, h.text, {
+            this.hints = L.hints.map(h => this.smokeText(h.x, h.y, h.text, {
                 fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', fontSize: '30px', color: '#151515'
-            }).setOrigin(0.5).setDepth(9).setAlpha(0));
+            }).setOrigin(0.5).setAlpha(0));
 
             this.createPlayer();
             this.createHazards();
@@ -308,6 +367,8 @@
             if (this.skipTitle) this.beginPlay(true);
             else { this.createRoom(); this.showTitle(); }
             cam.fadeIn(1800, 0, 0, 0);
+            // ?epilogo: empezar directamente en la habitación del final (para probar)
+            if (params.has('epilogo')) this.time.delayedCall(50, () => { this.whiteout.setAlpha(1); this.startEpilogue(); });
             window.__umbral = this;      // útil para pruebas automáticas
         }
 
@@ -441,7 +502,7 @@
         anyInput() {
             SFX.init();
             // si se entró sin pasar por la habitación (p. ej. con ?x=), la música arranca con la primera tecla
-            if (!SFX.musicPlaying() && ['play', 'waking', 'dead', 'cocoon', 'grabbed'].includes(this.state))
+            if (!SFX.musicPlaying() && ['play', 'waking', 'dead', 'cocoon', 'grabbed', 'epiWake', 'epilogue'].includes(this.state))
                 SFX.playMusic({ volume: MUSIC.forest.vol, fade: 2, restart: true });
             if (this.state === 'title' && this.t > 0.6) {
                 // el soundtrack es "la realidad": suena en la habitación y se apaga al adentrarse en el bosque
@@ -510,7 +571,7 @@
             this.clockN = 0;
             this.clockEv = this.time.addEvent({ delay: 1000, loop: true, callback: () => SFX.clock(this.clockN++ % 2 === 1) });
 
-            this.monoText = this.add.text(VIEW_W / 2, VIEW_H * 0.27, '', {
+            this.monoText = this.smokeText(VIEW_W / 2, VIEW_H * 0.27, '', {
                 fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', fontSize: '32px', color: '#d2d2d2', align: 'center'
             }).setOrigin(0.5).setScrollFactor(0).setDepth(30).setAlpha(0);
             this.monoIdx = -1;
@@ -658,17 +719,8 @@
                     o.bushGlow = this.add.image(m.x, m.y - (big ? 70 : 32), 'glow').setBlendMode(Phaser.BlendModes.ADD)
                         .setDepth(9.6).setScale(big ? 2.2 : 1.1).setAlpha(0);
                 }
-                o.txt = this.add.text(m.x, m.y - 190, m.text, {
-                    fontFamily: serif, fontStyle: 'italic', fontSize: '27px', color: '#101010', align: 'center', lineSpacing: 6
-                }).setOrigin(0.5).setDepth(13.6).setAlpha(0);
-                // parche de niebla clara detrás del texto: se lee también sobre los troncos
-                o.halo = this.add.image(m.x, m.y - 190, 'glow').setScale(o.txt.width / 70, 1.5).setDepth(13.5).setAlpha(0);
+                o.txt = this.smokeText(m.x, m.y - 190, m.text, { fontSize: '27px' }).setAlpha(0);
                 o.vis = 0;
-                if (m.blur) {
-                    // en la niebla: humo claro por encima de la oscuridad, en lugar de texto oscuro
-                    o.txt.setVisible(false); o.halo.setVisible(false);
-                    o.smoke = this.makeSmoke(m.x, m.y - 190, m.text, 27);
-                }
                 return o;
             });
             this.musicSwell = 0;
@@ -747,10 +799,9 @@
                 }
                 const show = m === active && !othersVisible && this.state !== 'credits';
                 m.vis = lerp(m.vis, show ? 0.85 : 0, show ? 0.03 : 0.08);
-                m.halo.setAlpha(m.vis * 0.6);
-                // en la niebla: humo que se deshace lejos y se enfoca al acercarse
-                if (m.smoke) this.drawSmoke(m.smoke, m.vis, clamp((d - 40) / 210, 0, 1));
-                else m.txt.setAlpha(m.vis);
+                // en la niebla los recuerdos se deshacen de lejos y se enfocan al acercarse
+                m.txt.setAlpha(m.vis);
+                m.txt.blurK = m.blur ? clamp((d - 40) / 210, 0, 1) : 0.12;
             });
         }
 
@@ -777,36 +828,7 @@
          *   en el suelo. No desaparece, pero ya no lo define. La muralla cae.
          * ================================================================= */
 
-        /** Texto de humo: claro, con dos copias que se deshacen alrededor y una sombra suave detrás. */
-        makeSmoke(x, y, text, size = 28) {
-            const style = {
-                fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic',
-                fontSize: size + 'px', color: '#ececec', align: 'center', lineSpacing: 6
-            };
-            const o = { x, y, vis: 0 };
-            o.blob = this.add.image(x, y, 'shadeBlob').setDepth(14.65).setAlpha(0);
-            o.ghosts = [0, 1].map(() => this.add.text(x, y, text, style).setOrigin(0.5).setDepth(14.68).setAlpha(0));
-            o.main = this.add.text(x, y, text, style).setOrigin(0.5).setDepth(14.7).setAlpha(0);
-            this.setSmokeText(o, text);
-            return o;
-        }
-        setSmokeText(o, text, x = o.x, y = o.y) {
-            o.x = x; o.y = y;
-            [o.main, ...o.ghosts].forEach(t => t.setText(text));
-            o.blob.setScale(Math.max(1, o.main.width / 85 + 0.8), Math.max(1, o.main.height / 55 + 0.9));
-        }
-        /** blurK: 0 = nítido, 1 = deshecho en humo. */
-        drawSmoke(o, vis, blurK = 0.2) {
-            const t = this.t;
-            o.main.setPosition(o.x, o.y + Math.sin(t * 0.9 + o.x) * 1.5).setAlpha(vis * (1 - 0.5 * blurK));
-            o.ghosts.forEach((g, i) => {
-                const s = i ? 1 : -1;
-                g.setPosition(o.x + s * (3 + 16 * blurK) + Math.sin(t * 1.1 + i * 2) * 3,
-                              o.y - 4 - 7 * Math.abs(Math.sin(t * 0.6 + i * 1.7)) + s * 2 * blurK)
-                 .setAlpha(vis * 0.32 * (0.45 + blurK));
-            });
-            o.blob.setPosition(o.x, o.y).setAlpha(vis * 0.6);
-        }
+        smokeText(x, y, text, style) { return new SmokeText(this, x, y, text, style); }
 
         createNight() {
             const LP = LEVEL.loop;
@@ -828,7 +850,7 @@
             const wz = this.add.zone(LP.wallX + 20, 260, 70, 600);
             this.physics.add.existing(wz, true);
             this.loopWallCol = this.physics.add.collider(this.player, wz);
-            this.loopSmoke = this.makeSmoke(LP.a + 330, 360, '');
+            this.loopSmoke = this.smokeText(LP.a + 330, 360, '', { fontSize: '28px' }).setAlpha(0);
 
             // la sombra: tiene su forma, lo sigue y deja un rastro de humo
             this.shade = { x: LP.a - 500, active: false, merged: false, a: 0 };
@@ -909,8 +931,8 @@
             /* ---- lo que piensa en el ciclo ---- */
             const o = this.loopSmoke;
             const showLoop = this.loopBroken ? Math.abs(px - o.x) < 420 : this.loopN > 0 && px > LP.a - 50 && px < LP.b + 50;
-            o.vis = lerp(o.vis, showLoop && o.main.text ? 0.9 : 0, 0.04);
-            this.drawSmoke(o, o.vis, this.loopBroken ? 0.1 : 0.3);
+            o.setAlpha(lerp(o.alpha, showLoop && o.text ? 0.9 : 0, 0.04));
+            o.blurK = this.loopBroken ? 0.1 : 0.3;
         }
 
         updateShade(dt, px, gateOpen) {
@@ -990,8 +1012,7 @@
                 this.scarf.forEach(s => { s.x -= D; s.px -= D; });
                 this.shade.x -= D;
                 this.loopN++;
-                this.setSmokeText(this.loopSmoke, LOOP_TEXTS[Math.min(this.loopN, LOOP_TEXTS.length - 1)], LP.a + 330, 360);
-                this.loopSmoke.vis = 0;
+                this.loopSmoke.setText(LOOP_TEXTS[Math.min(this.loopN, LOOP_TEXTS.length - 1)]).setPosition(LP.a + 330, 360).setAlpha(0);
                 cam.fadeIn(360, 0, 0, 0);
                 this.blinking = false;
             });
@@ -1012,8 +1033,7 @@
             this.cameras.main.shake(500, 0.006);
             this.tweens.add({ targets: this, loopFade: 0.45, duration: 2600, ease: 'Sine.easeInOut' });
             this.musicSwell = 1;
-            this.setSmokeText(this.loopSmoke, LOOP_BREAK, this.player.body.center.x + 40, 350);
-            this.loopSmoke.vis = 0;
+            this.loopSmoke.setText(LOOP_BREAK).setPosition(this.player.body.center.x + 40, 350).setAlpha(0);
         }
 
         /* =================================================================
@@ -1557,13 +1577,13 @@
             this.barrierCollider = this.physics.add.collider(this.player, bar);
             this.legPieces = [];
             const serif = '"Cormorant Garamond", Georgia, serif';
-            this.cocoonHint = this.add.text(0, 0, this.isTouch ? 'toca ↑ para liberarte' : 'salta para liberarte', {
-                fontFamily: serif, fontStyle: 'italic', fontSize: '26px', color: '#cfcfcf'
-            }).setOrigin(0.5).setDepth(13).setAlpha(0);
+            this.cocoonHint = this.smokeText(0, 0, this.isTouch ? 'toca ↑ para liberarte' : 'salta para liberarte', {
+                fontFamily: serif, fontStyle: 'italic', fontSize: '26px'
+            }).setAlpha(0);
             const trap = this.traps.find(t => t.spider);
-            this.spiderHint = this.add.text(trap.x, 470, 'la trampa…', {
-                fontFamily: serif, fontStyle: 'italic', fontSize: '26px', color: '#151515'
-            }).setOrigin(0.5).setDepth(9).setAlpha(0);
+            this.spiderHint = this.smokeText(trap.x, 470, 'la trampa…', {
+                fontFamily: serif, fontStyle: 'italic', fontSize: '26px'
+            }).setAlpha(0);
             this.resetSpider();
         }
 
@@ -1996,8 +2016,8 @@
 
         /** Sobre el blanco: la última línea, en silencio, y luego los créditos. */
         showEpitaph() {
-            const t = this.add.text(VIEW_W / 2, VIEW_H / 2, LEVEL.epitaph, {
-                fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', fontSize: '34px',
+            const t = this.smokeText(VIEW_W / 2, VIEW_H / 2, LEVEL.epitaph, {
+                fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', fontSize: '34px', dark: true,
                 color: '#1a1a1a', align: 'center', lineSpacing: 10
             }).setOrigin(0.5).setScrollFactor(0).setDepth(46.5).setAlpha(0);
             this.tweens.add({ targets: t, alpha: 0.9, duration: 2200, delay: 600 });
@@ -2075,13 +2095,13 @@
             this.epiUnderDoor = add(this.add.image(RX + 336, 560, 'glow').setBlendMode(Phaser.BlendModes.ADD).setScale(0.9, 0.12).setAlpha(0.2), 11);
 
             // textos: lo que piensa (cursiva) y la voz de su mamá (desde la puerta)
-            this.epiText = add(this.add.text(RX + 30, OY - 205, '', {
+            this.epiText = add(this.smokeText(RX + 30, OY - 205, '', {
                 fontFamily: serif, fontStyle: 'italic', fontSize: '19px', color: '#141414', align: 'center', lineSpacing: 4
             }).setOrigin(0.5).setAlpha(0), 13);
-            this.epiVoice = add(this.add.text(RX + 300, OY - 215, '', {
+            this.epiVoice = add(this.smokeText(RX + 300, OY - 215, '', {
                 fontFamily: serif, fontSize: '19px', color: '#0e0e0e', align: 'center'
             }).setOrigin(0.5).setAlpha(0), 13);
-            this.epiPrompt = add(this.add.text(0, 0, '', {
+            this.epiPrompt = add(this.smokeText(0, 0, '', {
                 fontFamily: serif, fontStyle: 'italic', fontSize: '14px', color: '#1c1c1c'
             }).setOrigin(0.5).setAlpha(0), 13);
 
@@ -2370,6 +2390,10 @@
                 const target = this.state === 'play' ? clamp(1 - (d - 120) / 260, 0, 0.7) : 0;
                 h.setAlpha(lerp(h.alpha, target, 0.05));
             });
+
+            // textos de humo
+            this.smokes = this.smokes.filter(o => !o.dead);
+            this.smokes.forEach(o => o.draw(this.t));
 
             // grano + parpadeo de proyector antiguo
             this.grain.tilePositionX = Math.random() * 256;
