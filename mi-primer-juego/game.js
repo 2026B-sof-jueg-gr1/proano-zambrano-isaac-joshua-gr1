@@ -120,24 +120,24 @@
         // Recuerdos: aparecen cuando el niño ya lleva el palo y pasa cerca.
         // bush: 'small' | 'big' (zarza con moras) · music: el soundtrack suena apagado un momento
         memories: [
-            { x: 650,  y: 560, stick: true, text: 'Siempre había un palo esperando en el camino.\nAlguien me enseñó a encontrarlo.' },
-            { x: 2560, y: 540, bush: 'small', text: 'Cada hoja tenía un nombre.\nYa no recuerdo la mitad.' },
-            { x: 4540, y: 560, bush: 'small', text: 'A veces el bosque estaba lleno de voces.\nA veces, solo de dos pasos.' },
-            { x: 5190, y: 560, text: 'Hubo un día en que corrimos\nsin saber de qué.' },
-            { x: 6330, y: 560, bush: 'big', music: true, text: 'Caer también puede sonar a risa.\nY al levantarse, siempre había algo dulce.' },
-            { x: 6800, y: 560, dark: true, text: 'No todos pudieron salir de aquí.\nAlgunos se quedaron envueltos en sus propios pensamientos.' },
-            { x: 8560, y: 560, text: 'Los caminos se hicieron largos.\nLas visitas, cortas.' },
+            { x: 650,  y: 560, stick: true, text: 'Él nunca usó un bastón comprado…\nrecogía una rama del camino, y esta me estaba esperando.' },
+            { x: 2560, y: 540, bush: 'small', text: 'Él le ponía nombre a cada hoja del camino…\ny hoy ya no recuerdo ni la mitad.' },
+            { x: 4540, y: 560, bush: 'small', text: 'A veces el bosque estaba lleno de voces,\ny a veces solo se oían nuestros pasos.' },
+            { x: 5190, y: 560, text: 'Una vez corrimos por aquí sin saber de qué huíamos…\ncomo ahora.' },
+            { x: 6330, y: 560, bush: 'big', music: true, text: 'Una vez me caí aquí, y en vez de llorar nos reímos…\ny él me levantó con un puñado de moras en la mano.' },
+            { x: 6800, y: 560, dark: true, text: 'No todos lograron salir de aquí…\nalgunos se quedaron envueltos en sus propios pensamientos.' },
+            { x: 8560, y: 560, text: 'Con el tiempo, sus pasos se hicieron más lentos…\ny sus visitas, cada vez más cortas.' },
             // en la niebla: recuerdos borrosos, que se enfocan al acercarse
-            { x: 8850, y: 560, blur: true, text: 'Hay cosas que ya no recuerdo bien.\nSu voz. El camino de vuelta.' },
-            { x: 9600, y: 560, blur: true, text: 'Un día, el camino lo recorrió solo.' },
-            { x: 10350, y: 560, blur: true, dark: true, text: 'Nadie me dijo que sería la última vez.' },
+            { x: 8850, y: 560, blur: true, text: 'Hay cosas que ya no recuerdo bien…\nsu voz, su risa, el camino de vuelta.' },
+            { x: 9600, y: 560, blur: true, text: 'Un día ya no me esperó para caminar…\nese último camino lo tuvo que recorrer solo.' },
+            { x: 10350, y: 560, blur: true, dark: true, text: 'Nadie me avisó que aquella caminata\nsería la última.' },
             // después de romper el ciclo
-            { x: 12150, y: 560, music: true, text: 'Me preguntó cuándo volveríamos.\nLe dije que pronto.' }
+            { x: 12150, y: 560, music: true, text: 'La última vez me preguntó cuándo volveríamos al bosque…\nle prometí que pronto, y hoy, por fin, lo estoy cumpliendo.' }
         ],
         // Epílogo: la habitación de día se monta aquí, a la derecha del nivel
         epilogue: { x: 14000 },
         // Última línea, sobre la pantalla blanca del final, antes de los créditos
-        epitaph: 'Lo que queda de alguien\na veces cabe en una mano.'
+        epitaph: 'A veces, lo que queda de alguien\ncabe en una sola mano.'
     };
 
     // Soundtrack (musica/umbral.mp3): suena siempre, pero cambia según dónde está el niño.
@@ -155,22 +155,22 @@
     // El ciclo: lo que piensa cada vez que vuelve al mismo lugar, y al romperlo
     const LOOP_TEXTS = [
         '',
-        'Otra vez aquí.',
-        'Camino y camino,\ny siempre vuelvo al mismo lugar.',
-        'Estas paredes no son de piedra.\nLas levanté yo.',
-        'Algo me sigue.\nSiempre ha estado ahí.',
-        'Ya no quiero huir.\nQuizá solo tengo que dejar que me alcance.'
+        'Otra vez aquí…',
+        'Camino y camino,\ny siempre termino en el mismo lugar.',
+        'Estas paredes no son de piedra…\nlas levanté yo, sin darme cuenta.',
+        'Algo me sigue…\ny creo que siempre ha estado ahí.',
+        'Ya no quiero seguir huyendo…\nquizá solo tenga que dejar que me alcance.'
     ];
-    const LOOP_BREAK = 'No se va a ir del todo.\nPero es mi sombra. No soy yo.';
+    const LOOP_BREAK = 'Esta oscuridad no se va a ir del todo…\npero ahora camina detrás de mí: es mi sombra, no soy yo.';
 
     // Monólogo interno en la habitación (cada línea se puede adelantar con una tecla)
     const MONOLOGUE = [
-        'Otra noche más mirando el mismo techo.',
-        'Todo sigue en su sitio. Yo no.',
+        'Otra noche más mirando el mismo techo…',
+        'todo sigue en su sitio, menos yo.',
         '¿Debería redecorar mi habitación?',
-        '…o quizá el problema no es la habitación.'
+        '…o quizá lo que necesita un cambio no es la habitación.'
     ];
-    const MONO_SINK = 'Hace mucho que no salgo a caminar.';
+    const MONO_SINK = 'Hace tanto que no salgo a caminar…';
 
     // Habitación: zoom inicial y las dos poses del niño (coordenadas locales, cama en y = 0)
     const ROOM_ZOOM = 1.8;
@@ -196,6 +196,12 @@
      *   Imita lo que se usaba de Phaser.Text (setText, setAlpha, alpha,
      *   setPosition, tweens sobre alpha/x/y, destroy...). blurK: 0 nítido, 1 deshecho.
      * ===================================================================== */
+    //   Cada línea aparece como humo que se condensa: primero llegan las copias
+    //   difusas, luego las letras se juntan y suben un poco hasta quedar nítidas.
+    //   La segunda línea llega un instante después, como un pensamiento que sigue.
+    const SMOKE_REVEAL = 1.2;       // segundos que tarda una línea en condensarse
+    const SMOKE_STAGGER = 0.8;      // retraso entre una línea y la siguiente
+
     class SmokeText {
         constructor(scene, x, y, text, style = {}) {
             this.scene = scene; this.x = x; this.y = y; this.alpha = 1; this.blurK = 0.15;
@@ -203,46 +209,86 @@
             const size = parseFloat(style.fontSize) || 28;
             this.k = size / 28;
             // dark: letras negras con el mismo efecto, para fondos blancos (la pantalla blanca del final)
-            const dark = !!style.dark;
-            const st = Object.assign({ fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', align: 'center', lineSpacing: 6 },
-                style, { color: dark ? '#121212' : '#ececec' });
+            const dark = this.dark = !!style.dark;
+            const st = Object.assign({ fontFamily: '"Cormorant Garamond", Georgia, serif', fontStyle: 'italic', align: 'center', lineSpacing: 6 }, style);
+            // letra más gruesa (500) y un contorno del color contrario: se lee de lejos, sobre lo claro y sobre lo oscuro
+            st.fontStyle = (/italic/.test(st.fontStyle) ? 'italic ' : '') + '500';
+            st.color = dark ? '#111111' : '#f4f4f4';
+            st.stroke = dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.88)';
+            st.strokeThickness = Math.max(2, 4.5 * this.k);
             delete st.dark;
+            this.style = st;
+            this.lineH = size * 1.15 + (st.lineSpacing || 6);
+            this.depth = 14.7; this.sf = null; this.reveal = 0; this._t = null; this._text = null;
+            this.lines = [];
             this.blob = scene.add.image(x, y, dark ? 'glow' : 'shadeBlob');
-            this.ghosts = [0, 1].map(() => scene.add.text(x, y, text, st).setOrigin(0.5));
-            // un halo oscuro pegado a las letras: se lee también sobre la niebla clara
-            this.main = scene.add.text(x, y, text, st).setOrigin(0.5)
-                .setShadow(0, 0, dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)', 7 * this.k, false, true);
-            this.parts = [this.blob, ...this.ghosts, this.main];
-            this.setDepth(14.7); this._fit();
+            this.setText(text);
             scene.smokes.push(this);
         }
-        get text() { return this.main.text; }
-        get width() { return this.main.width; }
-        _fit() {
-            this.blob.setScale(Math.max(0.9, this.main.width / 70 + 1.0 * this.k), Math.max(0.8, this.main.height / 45 + 1.0 * this.k));
+        get text() { return this._text; }
+        get width() { return this.lines.reduce((w, l) => Math.max(w, l.main.width), 0); }
+        _parts() { return [this.blob, ...this.lines.flatMap(l => [...l.ghosts, l.main])]; }
+        _apply() {
+            const d = this.depth;
+            this.blob.setDepth(d - 0.05);
+            this.lines.forEach(l => { l.ghosts.forEach(g => g.setDepth(d - 0.02)); l.main.setDepth(d); });
+            if (this.sf !== null) this._parts().forEach(p => p.setScrollFactor(this.sf));
         }
-        setText(t) { this.main.setText(t); this.ghosts.forEach(g => g.setText(t)); this._fit(); return this; }
-        setDepth(d) { this.blob.setDepth(d - 0.05); this.ghosts.forEach(g => g.setDepth(d - 0.02)); this.main.setDepth(d); return this; }
-        setScrollFactor(f) { this.parts.forEach(p => p.setScrollFactor(f)); return this; }
+        _fit() {
+            const h = Math.max(1, this.lines.length) * this.lineH;
+            this.blob.setScale(Math.max(0.9, this.width / 62 + 1.2 * this.k), Math.max(0.8, h / 40 + 1.1 * this.k));
+        }
+        /** Cambiar el texto vuelve a lanzar la animación de aparición (si es el mismo texto, no hace nada). */
+        setText(t) {
+            t = t == null ? '' : String(t);
+            if (t === this._text) return this;
+            this._text = t; this.reveal = 0;
+            this.lines.forEach(l => { l.main.destroy(); l.ghosts.forEach(g => g.destroy()); });
+            const sc = this.scene, st = this.style;
+            const halo = this.dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.95)';
+            const gst = Object.assign({}, st, { strokeThickness: 0 });
+            this.lines = t ? t.split('\n').map(s => ({
+                ghosts: [0, 1].map(() => sc.add.text(this.x, this.y, s, gst).setOrigin(0.5).setAlpha(0)),
+                main: sc.add.text(this.x, this.y, s, st).setOrigin(0.5).setAlpha(0)
+                    .setShadow(0, 0, halo, 12 * this.k, true, true),
+                ls: 0
+            })) : [];
+            this._apply(); this._fit();
+            return this;
+        }
+        setDepth(d) { this.depth = d; this._apply(); return this; }
+        setScrollFactor(f) { this.sf = f; this._apply(); return this; }
         setAlpha(a) { this.alpha = a; return this; }
         setPosition(x, y) { this.x = x; if (y !== undefined) this.y = y; return this; }
         setVisible(v) { this.visible = v; return this; }
         setOrigin() { return this; }
         setColor() { return this; }
         setLetterSpacing() { return this; }
-        destroy() { this.parts.forEach(p => p.destroy()); this.dead = true; }
+        destroy() { this._parts().forEach(p => p.destroy()); this.dead = true; }
         draw(t) {
-            const a = this.visible ? Math.max(0, this.alpha) : 0, k = this.blurK, z = this.k, sd = this.seed;
+            const dt = this._t === null ? 0 : clamp(t - this._t, 0, 0.1); this._t = t;
+            const a = this.visible ? Math.max(0, this.alpha) : 0;
+            // cuando desaparece del todo, la próxima vez vuelve a condensarse desde el humo
+            if (a < 0.02) this.reveal = 0; else this.reveal += dt;
             if (a < 0.003 && this._last < 0.003) return;
             this._last = a;
-            this.main.setPosition(this.x, this.y + Math.sin(t * 0.9 + sd) * 1.5 * z).setAlpha(a * (1 - 0.5 * k));
-            this.ghosts.forEach((g, i) => {
-                const s = i ? 1 : -1;
-                g.setPosition(this.x + (s * (3 + 16 * k) + Math.sin(t * 1.1 + i * 2 + sd) * 3) * z,
-                              this.y + (-4 - 7 * Math.abs(Math.sin(t * 0.6 + i * 1.7 + sd)) + s * 2 * k) * z)
-                 .setAlpha(a * 0.32 * (0.45 + k));
+            const k = this.blurK, z = this.k, sd = this.seed, n = this.lines.length;
+            this.blob.setPosition(this.x, this.y).setAlpha(a * 0.92 * Math.min(1, this.reveal * 2.5));
+            this.lines.forEach((l, i) => {
+                const r = clamp((this.reveal - i * SMOKE_STAGGER) / SMOKE_REVEAL, 0, 1);
+                const e = 1 - Math.pow(1 - r, 3);
+                const kk = lerp(1, k, e);                                   // empieza deshecha y se enfoca
+                const ly = this.y + (i - (n - 1) / 2) * this.lineH + (1 - e) * 14 * z;
+                const ls = Math.round((1 - e) * 14) / 2;                    // las letras se juntan
+                if (ls !== l.ls) { l.ls = ls; l.main.setLetterSpacing(ls); l.ghosts.forEach(g => g.setLetterSpacing(ls)); }
+                l.main.setPosition(this.x, ly + Math.sin(t * 0.9 + sd + i) * 1.5 * z).setAlpha(a * e * (1 - 0.35 * k));
+                l.ghosts.forEach((g, j) => {
+                    const s = j ? 1 : -1;
+                    g.setPosition(this.x + (s * (3 + 16 * kk) + Math.sin(t * 1.1 + j * 2 + sd + i) * 3) * z,
+                                  ly + (-4 - 7 * Math.abs(Math.sin(t * 0.6 + j * 1.7 + sd + i)) + s * 2 * kk) * z)
+                     .setAlpha(a * 0.3 * (0.45 + kk) * Math.min(1, r * 3));
+                });
             });
-            this.blob.setPosition(this.x, this.y).setAlpha(a * 0.85);
         }
     }
 
@@ -719,7 +765,7 @@
                     o.bushGlow = this.add.image(m.x, m.y - (big ? 70 : 32), 'glow').setBlendMode(Phaser.BlendModes.ADD)
                         .setDepth(9.6).setScale(big ? 2.2 : 1.1).setAlpha(0);
                 }
-                o.txt = this.smokeText(m.x, m.y - 190, m.text, { fontSize: '27px' }).setAlpha(0);
+                o.txt = this.smokeText(m.x, m.y - 190, m.text, { fontSize: '30px' }).setAlpha(0);
                 o.vis = 0;
                 return o;
             });
@@ -801,7 +847,7 @@
                 m.vis = lerp(m.vis, show ? 0.85 : 0, show ? 0.03 : 0.08);
                 // en la niebla los recuerdos se deshacen de lejos y se enfocan al acercarse
                 m.txt.setAlpha(m.vis);
-                m.txt.blurK = m.blur ? clamp((d - 40) / 210, 0, 1) : 0.12;
+                m.txt.blurK = m.blur ? clamp((d - 40) / 210, 0, 1) * 0.7 : 0.1;
             });
         }
 
@@ -850,7 +896,7 @@
             const wz = this.add.zone(LP.wallX + 20, 260, 70, 600);
             this.physics.add.existing(wz, true);
             this.loopWallCol = this.physics.add.collider(this.player, wz);
-            this.loopSmoke = this.smokeText(LP.a + 330, 360, '', { fontSize: '28px' }).setAlpha(0);
+            this.loopSmoke = this.smokeText(LP.a + 330, 360, '', { fontSize: '30px' }).setAlpha(0);
 
             // la sombra: tiene su forma, lo sigue y deja un rastro de humo
             this.shade = { x: LP.a - 500, active: false, merged: false, a: 0 };
@@ -2135,7 +2181,7 @@
 
             // despertar: el blanco se disuelve en la mañana
             this.tweens.add({ targets: this.whiteout, alpha: 0, duration: 3200, ease: 'Sine.easeOut' });
-            this.time.delayedCall(1800, () => this.epiSay('Ya es de día.'));
+            this.time.delayedCall(1800, () => this.epiSay('Ya es de día…'));
             this.time.delayedCall(4200, () => this.tweens.add({
                 targets: this, wake: 1, duration: 1700, ease: 'Sine.easeInOut',
                 onComplete: () => { this.state = 'epilogue'; this.touchUI.forEach(o => o.setVisible(true)); }
@@ -2164,7 +2210,7 @@
         /** La mamá llama desde el otro lado de la puerta. */
         momCall() {
             if (!this.epi || this.epi.door) return;
-            const lines = ['—¡Hijo, a comer!', '—¿Hijo? Te estamos esperando.'];
+            const lines = ['—¡Chiqui, a comer!', '—¿Chiqui? Te estamos esperando.'];
             const t = this.epiVoice;
             SFX.knock();
             this.tweens.add({ targets: this.epiUnderDoor, alpha: 0.45, duration: 600, yoyo: true, hold: 1800 });
@@ -2211,17 +2257,17 @@
                 this.tweens.add({ targets: this.epiBeam, alpha: 0.42, duration: 2200 });
                 this.tweens.add({ targets: this.epiSun, alpha: 0.45, duration: 2200 });
                 SFX.web();
-                this.epiSay('Un poco de luz también\ncambia una habitación.');
+                this.epiSay('Al final, un poco de luz\ntambién cambia una habitación.');
             } else if (near.key === 'stick') {
                 ep.stick = true;
                 this.epiCane.setVisible(false);
                 this.hasStick = true;
                 this.cameras.main.flash(400, 60, 60, 60);
                 SFX.checkpoint();
-                this.epiSay('Sigue aquí.\nTodavía brilla.');
+                this.epiSay('Sigue aquí…\ny todavía brilla.');
             } else if (near.key === 'door') {
                 if (!ep.stick) {
-                    this.epiSay('Me falta algo.', 1800);
+                    this.epiSay('Me falta algo…', 1800);
                     return;
                 }
                 ep.door = true;
@@ -2246,7 +2292,7 @@
                 this.tweens.add({ targets: v, alpha: 0.95, duration: 500 });
                 this.tweens.add({ targets: v, alpha: 0, duration: 800, delay: 2000 });
             });
-            this.time.delayedCall(3200, () => this.epiSay('Hay gente que todavía me espera.', 3000));
+            this.time.delayedCall(3200, () => this.epiSay('Todavía hay gente\nque me está esperando.', 3000));
             this.time.delayedCall(4600, () => { this.endWalk = 1; });
             this.time.delayedCall(6400, () => this.tweens.add({
                 targets: this.whiteout, alpha: 1, duration: 2600, ease: 'Sine.easeIn',
@@ -2431,7 +2477,8 @@
 
     // Espera a la fuente del título (máx. 2.5 s) para que no aparezca con la de respaldo
     const fontReady = document.fonts && document.fonts.load
-        ? Promise.race([document.fonts.load('300 120px "Cormorant Garamond"'), new Promise(r => setTimeout(r, 2500))])
+        ? Promise.race([Promise.all([document.fonts.load('300 120px "Cormorant Garamond"'), document.fonts.load('italic 500 30px "Cormorant Garamond"'),
+                                     document.fonts.load('500 30px "Cormorant Garamond"')]), new Promise(r => setTimeout(r, 2500))])
         : Promise.resolve();
     fontReady.catch(() => {}).then(start);
 })();
